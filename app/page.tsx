@@ -1,69 +1,84 @@
-import Image from "next/image";
+"use client"
+
+import { useSyncExternalStore } from "react"
+import { CalendarDays, CloudSun, Coffee, ArrowRight, Sparkles } from "lucide-react"
+import Link from "next/link"
+import { RockyPresence } from "@/components/rocky/rocky-presence"
+import { AwarenessCard } from "@/components/awareness/awareness-card"
+import { ConversationPanel } from "@/components/chat/conversation-panel"
+import { useSettingsStore } from "@/stores/settings-store"
+
+const subscribeToNothing = () => () => {}
+const getGreeting = () => {
+  const hour = new Date().getHours()
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
+}
+const getTodayLabel = () =>
+  new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date()).toUpperCase()
 
 export default function Home() {
+  const greeting = useSyncExternalStore(subscribeToNothing, getGreeting, () => "A moment for you")
+  const todayLabel = useSyncExternalStore(subscribeToNothing, getTodayLabel, () => "YOUR SPACE TODAY")
+  const personality = useSettingsStore((store) => store.personality)
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="page home-page">
+      <header className="page-header home-header">
+        <div>
+          <span className="eyebrow">{todayLabel}</span>
+          <h1>{greeting}<span className="heading-period">.</span></h1>
+          <p>A little space for whatever’s on your mind.</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="header-personality"><span className="status-dot" /> {personality} companion</div>
+      </header>
+      <div className="home-grid">
+        <div className="home-primary">
+          <RockyPresence />
+          <section className="context-section">
+            <div className="section-heading context-heading">
+              <div><span className="eyebrow">A LITTLE CONTEXT</span><h2>Here & now</h2></div>
+              <span className="context-note">Thoughtful, not intrusive</span>
+            </div>
+            <div className="context-grid">
+              <article className="context-card">
+                <span className="context-icon"><CloudSun size={17} /></span>
+                <span className="context-label">YOUR ENVIRONMENT</span>
+                <strong>Quiet moment</strong>
+                <span className="context-detail">No live sensing · demo only</span>
+              </article>
+              <article className="context-card">
+                <span className="context-icon"><Sparkles size={17} /></span>
+                <span className="context-label">RECENT MEMORY</span>
+                <strong>A gentle start</strong>
+                <Link href="/memories" className="context-detail context-link">View sample memory <ArrowRight size={12} /></Link>
+              </article>
+              <article className="context-card">
+                <span className="context-icon"><CalendarDays size={17} /></span>
+                <span className="context-label">YOUR DAY</span>
+                <strong>Room to begin</strong>
+                <span className="context-detail">Your calendar isn’t connected</span>
+              </article>
+            </div>
+          </section>
+          <div className="awareness-section">
+            <div className="section-heading compact-heading">
+              <div><span className="eyebrow">A GENTLE NUDGE</span><h2>Something to consider</h2></div>
+            </div>
+            <AwarenessCard />
+          </div>
         </div>
-      </main>
+        <aside className="home-aside">
+          <ConversationPanel />
+          <div className="privacy-note">
+            <span className="privacy-icon"><Coffee size={15} /></span>
+            <p><strong>A note on this demo</strong><br />Rocky is a visual prototype. Voice, camera, AI replies, and long-term memory are not connected.</p>
+          </div>
+        </aside>
+      </div>
     </div>
-  );
+  )
 }
