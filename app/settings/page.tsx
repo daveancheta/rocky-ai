@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Check, ChevronRight, Eye, Moon, Sun, Monitor, ShieldCheck, Sparkles, Volume2 } from "lucide-react"
 import { useSettingsStore, type Appearance } from "@/stores/settings-store"
 import { useMemoryStore } from "@/stores/memory-store"
@@ -9,6 +9,7 @@ import { getMemoryPreference, updateMemoryPreference } from "@/lib/api/memories"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
+import { canUseSpeechSynthesis, speakCompanionText, stopCompanionSpeech } from "@/lib/voice/speech-controller"
 
 const appearances: Array<{ value: Appearance; label: string; icon: typeof Sun }> = [
   { value: "light", label: "Light", icon: Sun },
@@ -34,6 +35,10 @@ export default function SettingsPage() {
   const setSpeakProactive = useSettingsStore((store) => store.setSpeakProactive)
   const speakReplies = useSettingsStore((store) => store.speakReplies)
   const setSpeakReplies = useSettingsStore((store) => store.setSpeakReplies)
+  const speechVoiceURI = useSettingsStore((store) => store.speechVoiceURI)
+  const setSpeechVoiceURI = useSettingsStore((store) => store.setSpeechVoiceURI)
+  const speechRate = useSettingsStore((store) => store.speechRate)
+  const setSpeechRate = useSettingsStore((store) => store.setSpeechRate)
   const quietHoursEnabled = useSettingsStore((store) => store.quietHoursEnabled)
   const setQuietHoursEnabled = useSettingsStore((store) => store.setQuietHoursEnabled)
   const quietHoursStart = useSettingsStore((store) => store.quietHoursStart)
@@ -45,6 +50,54 @@ export default function SettingsPage() {
   const [memoryPreferenceLoading, setMemoryPreferenceLoading] = useState(true)
   const [memoryPreferenceError, setMemoryPreferenceError] = useState<string>()
   const [isClearingMemories, setIsClearingMemories] = useState(false)
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [voiceTestState, setVoiceTestState] = useState<"idle" | "playing" | "unavailable">("idle")
+  const [voiceTestError, setVoiceTestError] = useState<string>()
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const mountedRef = useRef(false)
+
+  useEffect(() => {
+    mountedRef.current = true
+    const supported = canUseSpeechSynthesis()
+    if (!supported) return
+    queueMicrotask(() => {
+      if (mountedRef.current) setSpeechSupported(true)
+    })
+    const updateVoices = () => setAvailableVoices(window.speechSynthesis.getVoices())
+    updateVoices()
+    window.speechSynthesis.addEventListener("voiceschanged", updateVoices)
+    return () => {
+      mountedRef.current = false
+      window.speechSynthesis.removeEventListener("voiceschanged", updateVoices)
+      stopCompanionSpeech("test")
+    }
+  }, [])
+
+  const testVoice = () => {
+    if (voiceTestState === "playing") {
+      stopCompanionSpeech("test")
+      setVoiceTestState("idle")
+      return
+    }
+    setVoiceTestError(undefined)
+    const started = speakCompanionText("Hello, I’m Rocky. This is how my voice will sound.", {
+      owner: "test",
+      voiceURI: speechVoiceURI,
+      rate: speechRate,
+      onStart: () => { if (mountedRef.current) setVoiceTestState("playing") },
+      onEnd: () => { if (mountedRef.current) setVoiceTestState("idle") },
+      onError: () => {
+        if (mountedRef.current) {
+          setVoiceTestState("unavailable")
+          setVoiceTestError("The browser could not play the selected voice.")
+        }
+      },
+    })
+    if (!started) {
+      setVoiceTestState("unavailable")
+      setVoiceTestError("Speech could not start. Check browser audio support or stop other playback and try again.")
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -123,10 +176,6 @@ export default function SettingsPage() {
           <PreferenceToggle checked={speakProactive} onChange={setSpeakProactive} label="Speak proactive check-ins aloud" disabled={!proactiveEnabled} />
         </div>
         <div className="setting-row">
-          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Speak Rocky&apos;s replies</strong><span>Read chat replies aloud when browser speech synthesis is available. You can interrupt playback from the companion screen.</span></div></div>
-          <PreferenceToggle checked={speakReplies} onChange={setSpeakReplies} label="Speak Rocky's replies aloud" />
-        </div>
-        <div className="setting-row">
           <div><strong>Quiet hours</strong><span>Rocky stays quiet during the selected local time range.</span></div>
           <PreferenceToggle checked={quietHoursEnabled} onChange={setQuietHoursEnabled} label="Enable quiet hours" disabled={!proactiveEnabled} />
         </div>
@@ -134,6 +183,30 @@ export default function SettingsPage() {
           <label>From <input type="time" value={quietHoursStart} onChange={(event) => setQuietHoursStart(event.target.value)} aria-label="Quiet hours start" /></label>
           <label>Until <input type="time" value={quietHoursEnd} onChange={(event) => setQuietHoursEnd(event.target.value)} aria-label="Quiet hours end" /></label>
         </div>}
+      </Card>
+
+      <Card role="region" aria-labelledby="voice-heading" className="settings-section gap-0 ring-0">
+        <div className="settings-section-heading"><span className="settings-section-icon"><Volume2 size={17} /></span><div><h2 id="voice-heading">Voice</h2><p>Choose how ROCKY responds aloud on this device.</p></div></div>
+        <div className="setting-row">
+          <div><strong>Voice replies</strong><span>Automatically speak ROCKY&apos;s actual chat responses when browser speech is supported.</span></div>
+          <PreferenceToggle checked={speakReplies} onChange={setSpeakReplies} label="Enable voice replies" />
+        </div>
+        <div className="setting-row voice-setting-control">
+          <label htmlFor="rocky-speech-voice"><strong>Voice</strong><span>Only voices provided by your browser are listed.</span></label>
+          <select id="rocky-speech-voice" className="voice-setting-select" value={speechVoiceURI} onChange={(event) => setSpeechVoiceURI(event.target.value)} disabled={!speechSupported || availableVoices.length === 0}>
+            <option value="">Device default</option>
+            {availableVoices.map((voice) => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}{voice.default ? " · default" : ""}</option>)}
+          </select>
+        </div>
+        <div className="setting-row voice-setting-control">
+          <label htmlFor="rocky-speech-rate"><strong>Speech speed</strong><span>{speechRate.toFixed(2)}×</span></label>
+          <input id="rocky-speech-rate" className="voice-setting-rate" type="range" min="0.75" max="1.5" step="0.05" value={speechRate} onChange={(event) => setSpeechRate(Number(event.target.value))} disabled={!speechSupported} />
+        </div>
+        <div className="setting-row voice-test-row">
+          <div><strong>Test Voice</strong><span>{voiceTestError ?? (speechSupported ? "Plays a short sample using your current voice and speed." : "Speech synthesis is not available in this browser.")}</span></div>
+          <Button type="button" variant="outline" onClick={testVoice} disabled={!speechSupported}>{voiceTestState === "playing" ? "Stop test" : "Test Voice"}</Button>
+        </div>
+        <p className="settings-hint">Hands-free listening is not supported by ROCKY&apos;s current push-to-talk transcription service.</p>
       </Card>
 
       <Card role="region" aria-labelledby="devices-heading" className="settings-section gap-0 ring-0">

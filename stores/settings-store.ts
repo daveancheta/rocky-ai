@@ -13,6 +13,8 @@ type SettingsStore = {
   proactiveEnabled: boolean
   speakProactive: boolean
   speakReplies: boolean
+  speechVoiceURI: string
+  speechRate: number
   quietHoursEnabled: boolean
   quietHoursStart: string
   quietHoursEnd: string
@@ -24,6 +26,8 @@ type SettingsStore = {
   setProactiveEnabled: (enabled: boolean) => void
   setSpeakProactive: (enabled: boolean) => void
   setSpeakReplies: (enabled: boolean) => void
+  setSpeechVoiceURI: (voiceURI: string) => void
+  setSpeechRate: (rate: number) => void
   setQuietHoursEnabled: (enabled: boolean) => void
   setQuietHoursStart: (time: string) => void
   setQuietHoursEnd: (time: string) => void
@@ -40,7 +44,9 @@ export const useSettingsStore = create<SettingsStore>()(
       cameraMonitoring: false,
       proactiveEnabled: true,
       speakProactive: false,
-      speakReplies: false,
+      speakReplies: true,
+      speechVoiceURI: "",
+      speechRate: 1,
       quietHoursEnabled: false,
       quietHoursStart: "22:00",
       quietHoursEnd: "08:00",
@@ -52,6 +58,8 @@ export const useSettingsStore = create<SettingsStore>()(
       setProactiveEnabled: (proactiveEnabled) => set({ proactiveEnabled }),
       setSpeakProactive: (speakProactive) => set({ speakProactive }),
       setSpeakReplies: (speakReplies) => set({ speakReplies }),
+      setSpeechVoiceURI: (speechVoiceURI) => set({ speechVoiceURI }),
+      setSpeechRate: (speechRate) => set({ speechRate }),
       setQuietHoursEnabled: (quietHoursEnabled) => set({ quietHoursEnabled }),
       setQuietHoursStart: (quietHoursStart) => set({ quietHoursStart }),
       setQuietHoursEnd: (quietHoursEnd) => set({ quietHoursEnd }),
@@ -69,6 +77,8 @@ export const useSettingsStore = create<SettingsStore>()(
         proactiveEnabled: state.proactiveEnabled,
         speakProactive: state.speakProactive,
         speakReplies: state.speakReplies,
+        speechVoiceURI: state.speechVoiceURI,
+        speechRate: state.speechRate,
         quietHoursEnabled: state.quietHoursEnabled,
         quietHoursStart: state.quietHoursStart,
         quietHoursEnd: state.quietHoursEnd,

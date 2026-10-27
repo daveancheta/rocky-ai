@@ -1,9 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
-import { ArrowUp, LoaderCircle, Mic, Square, VolumeX } from "lucide-react"
+import { useCallback, useEffect, useRef } from "react"
+import { LoaderCircle, Mic, Square, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useVoiceInput } from "@/components/chat/use-voice-input"
 import { useChatStore } from "@/stores/chat-store"
 import { useCompanionStore } from "@/stores/companion-store"
@@ -26,7 +25,8 @@ export function CompanionConversation() {
   const cancelCurrent = useChatStore((store) => store.cancelCurrent)
   const microphoneEnabled = useSettingsStore((store) => store.microphoneEnabled)
   const speakReplies = useSettingsStore((store) => store.speakReplies)
-  const [draft, setDraft] = useState("")
+  const speechVoiceURI = useSettingsStore((store) => store.speechVoiceURI)
+  const speechRate = useSettingsStore((store) => store.speechRate)
   const pendingReplyCountRef = useRef<number | null>(null)
   const latestReply = [...messages].reverse().find((message) => message.role === "assistant")
 
@@ -40,7 +40,6 @@ export function CompanionConversation() {
   }, [sendMessage, setStatus])
 
   const onTranscript = useCallback((transcript: string) => {
-    setDraft("")
     void submit(transcript)
   }, [submit])
   const voice = useVoiceInput(onTranscript)
@@ -88,12 +87,20 @@ export function CompanionConversation() {
     if (!speakReplies) return
     const speechStarted = speakCompanionText(latestReply.content, {
       owner: "reply",
+      voiceURI: speechVoiceURI,
+      rate: speechRate,
       onStart: () => {
         if (useCompanionStore.getState().isActive) setStatus("speaking")
       },
       onEnd: () => {
         if (useCompanionStore.getState().isActive && useCompanionStore.getState().status === "speaking") {
           setStatus("ready")
+        }
+      },
+      onError: () => {
+        if (useCompanionStore.getState().isActive) {
+          setStatus("ready")
+          useCompanionStore.getState().setSessionNotice("Speech playback failed. Rocky's reply remains available on screen.")
         }
       },
     })
@@ -103,7 +110,7 @@ export function CompanionConversation() {
         useCompanionStore.getState().setSessionNotice("Speech output is unavailable or busy. Rocky's reply is shown as text.")
       }
     }
-  }, [chatError, isActive, isSending, latestReply, messages.length, setStatus, speakReplies])
+  }, [chatError, isActive, isSending, latestReply, messages.length, setStatus, speakReplies, speechRate, speechVoiceURI])
 
   useEffect(() => {
     if (!isActive) return
@@ -115,14 +122,6 @@ export function CompanionConversation() {
     document.addEventListener("visibilitychange", onVisibility)
     return () => document.removeEventListener("visibilitychange", onVisibility)
   }, [cancelVoice, isActive])
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!draft.trim() || isSending || isLoadingHistory || voiceStatus !== "idle") return
-    const content = draft
-    setDraft("")
-    void submit(content)
-  }
 
   const busy = isSending || voiceStatus === "processing" || voiceStatus === "requesting"
   const voiceStatusCopy = voiceStatus === "requesting"
@@ -148,17 +147,7 @@ export function CompanionConversation() {
         }}>Try again</Button>}
         {historyError && <Button type="button" variant="ghost" size="sm" onClick={() => void loadHistory()}>Retry history</Button>}
       </div>}
-      <form className="companion-composer" onSubmit={onSubmit}>
-        <Input
-          className="companion-message-input"
-          aria-label="Type a message to Rocky"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={isActive ? "Talk or type to Rocky…" : "Start companion mode to talk"}
-          maxLength={2_000}
-          autoComplete="off"
-          disabled={!isActive || busy || isLoadingHistory || voiceStatus === "recording"}
-        />
+      <div className="companion-composer companion-voice-controls" role="group" aria-label="Voice controls">
         {status === "speaking" && <Button type="button" variant="ghost" size="icon" className="companion-voice-button" onClick={() => stopCompanionSpeech()} aria-label="Stop Rocky speaking" title="Stop speaking"><VolumeX size={17} /></Button>}
         <Button
           type="button"
@@ -175,11 +164,8 @@ export function CompanionConversation() {
         >
           {voiceStatus === "recording" ? <Square size={15} /> : voiceStatus === "requesting" || voiceStatus === "processing" ? <LoaderCircle size={16} className="animate-spin" /> : <Mic size={17} />}
         </Button>
-        <Button type="submit" className="companion-send-button" disabled={!isActive || busy || isLoadingHistory || voiceStatus !== "idle" || !draft.trim()} aria-label="Send message to Rocky" title="Send message">
-          {busy && !isSending ? <LoaderCircle size={16} className="animate-spin" /> : <ArrowUp size={17} />}
-        </Button>
-      </form>
-      {isActive && !microphoneEnabled && <p className="companion-input-hint">Push-to-talk is off in Settings. You can still type here.</p>}
+      </div>
+      {isActive && !microphoneEnabled && <p className="companion-input-hint">Push-to-talk is off in Settings.</p>}
     </div>
   )
 }

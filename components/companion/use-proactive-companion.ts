@@ -93,8 +93,15 @@ export function useProactiveCompanion() {
       const maySpeak = result.speak && currentSettings.speakProactive && !["listening", "speaking"].includes(status)
       if (maySpeak) speakCompanionText(message.text, {
         owner: "proactive",
+        voiceURI: currentSettings.speechVoiceURI,
+        rate: currentSettings.speechRate,
         onStart: () => useCompanionStore.getState().setStatus("speaking"),
         onEnd: () => {
+          if (useCompanionStore.getState().isActive && useCompanionStore.getState().status === "speaking") {
+            useCompanionStore.getState().setStatus("ready")
+          }
+        },
+        onError: () => {
           if (useCompanionStore.getState().isActive && useCompanionStore.getState().status === "speaking") {
             useCompanionStore.getState().setStatus("ready")
           }

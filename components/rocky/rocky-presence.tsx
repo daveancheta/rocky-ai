@@ -15,6 +15,14 @@ const statusCopy = {
   observing: "Observing a still image",
 }
 
+const subtitleCopy = {
+  ready: "Ready when you are.",
+  listening: "I’m listening…",
+  thinking: "Let me think…",
+  speaking: "Rocky is speaking…",
+  observing: "Taking a quick look…",
+}
+
 export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: () => void; isStarting: boolean; disabled: boolean }) {
   const isActive = useCompanionStore((store) => store.isActive)
   const status = useCompanionStore((store) => store.status)
@@ -59,7 +67,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
         <div className="presence-copy">
           <p className="presence-kicker">A little space to be</p>
           <h2>I&apos;m here with you.</h2>
-          <p className="presence-state">{isActive ? "I’m here with you." : "Start a companion session whenever you’re ready."}</p>
+          <p className="presence-state">{isActive ? subtitleCopy[status] : "Start a companion session when you’re ready."}</p>
         </div>
       </div>
       {isActive && <CompanionConversation />}

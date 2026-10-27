@@ -19,6 +19,7 @@ function installSpeechMock() {
     speaking: false,
     pending: false,
     lastUtterance: undefined,
+    getVoices() { return [{ voiceURI: "voice-en", name: "English", lang: "en-US" }] },
     speak(utterance) { this.lastUtterance = utterance; this.pending = true },
     cancel() { this.speaking = false; this.pending = false },
   }
@@ -52,9 +53,13 @@ test("speech output is exclusive, interruptible, and reports actual playback eve
   let ended
   assert.equal(speakCompanionText("Hello there", {
     owner: "reply",
+    voiceURI: "voice-en",
+    rate: 1.25,
     onStart: () => { started += 1 },
     onEnd: (cancelled) => { ended = cancelled },
   }), true)
+  assert.equal(synthesis.lastUtterance.voice.voiceURI, "voice-en")
+  assert.equal(synthesis.lastUtterance.rate, 1.25)
   assert.equal(speakCompanionText("Another response", { owner: "proactive" }), false)
   assert.equal(isCompanionSpeechActive(), true)
   synthesis.lastUtterance.onstart()
@@ -62,5 +67,20 @@ test("speech output is exclusive, interruptible, and reports actual playback eve
   assert.equal(stopCompanionSpeech("proactive"), false)
   assert.equal(stopCompanionSpeech("reply"), true)
   assert.equal(ended, true)
+  assert.equal(isCompanionSpeechActive(), false)
+})
+
+test("speech playback failures are reported without claiming successful playback", () => {
+  const synthesis = installSpeechMock()
+  let failed = 0
+  let ended = 0
+  assert.equal(speakCompanionText("Hello", {
+    owner: "test",
+    onEnd: () => { ended += 1 },
+    onError: () => { failed += 1 },
+  }), true)
+  synthesis.lastUtterance.onerror()
+  assert.equal(failed, 1)
+  assert.equal(ended, 0)
   assert.equal(isCompanionSpeechActive(), false)
 })

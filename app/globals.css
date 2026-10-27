@@ -176,6 +176,7 @@
 .companion-voice-status, .companion-input-hint { margin: 0; color: var(--taupe); font-size: 10px; text-align: center; }
 .companion-conversation-error { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--primary); font-size: 11px; }
 .companion-composer { display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 4px 5px 4px 15px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); box-shadow: 0 4px 12px rgb(43 37 28 / 5%); }
+.companion-voice-controls { justify-content: center; width: fit-content; min-width: 88px; padding: 4px; }
 .companion-message-input { min-width: 0; height: 34px !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; font-size: 12px !important; }
 .companion-message-input:focus-visible { outline: none; box-shadow: none !important; }
 .companion-voice-button, .companion-send-button { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; color: var(--foreground); }
@@ -418,6 +419,11 @@
 .setting-row span { color: var(--taupe); font-size: 10px; line-height: 1.5; }
 .setting-row-icon { display: flex; align-items: center; gap: 10px; color: #9b875e; }
 .setting-row-icon div { display: grid; gap: 4px; }
+.voice-setting-control > label { display: grid; gap: 4px; }
+.voice-setting-select { width: min(340px, 50%); min-height: 36px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font: inherit; font-size: 11px; }
+.voice-setting-rate { width: min(340px, 50%); accent-color: var(--primary); }
+.voice-test-row > button { flex: 0 0 auto; border-color: var(--border); color: var(--foreground); background: var(--card); }
+.voice-test-row > button:hover { background: var(--muted); }
 .quiet-hours-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 10px 42px; }
 .quiet-hours-row label { display: flex; align-items: center; gap: 7px; color: var(--taupe); font-size: 10px; }
 .quiet-hours-row input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--foreground); background: var(--card); font: inherit; }

@@ -94,7 +94,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
       if (requestId !== actionIdRef.current || !mountedRef.current) return
       const normalizedTranscript = result.transcript.trim()
       if (!normalizedTranscript) {
-        setError("No speech was recognized. Try again or type your message.")
+        setError("No speech was recognized. Try again and speak clearly.")
         changeStatus("idle")
         return
       }
@@ -106,7 +106,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "Transcription failed. You can still type a message.",
+          : "Transcription failed. Please try recording again.",
       )
       changeStatus("idle")
     } finally {
@@ -129,7 +129,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
   const startRecording = useCallback(async () => {
     if (statusRef.current !== "idle") return
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Microphone recording is not supported in this browser. You can still type a message.")
+      setError("Microphone recording is not supported in this browser.")
       return
     }
 
@@ -191,7 +191,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
         changeStatus("idle")
         setError(
           caught instanceof Error && caught.name === "NotAllowedError"
-            ? "Microphone access was denied. You can still type a message."
+            ? "Microphone access was denied. Allow it in your browser settings to use voice input."
             : "Could not start microphone recording. Check your browser permissions and try again.",
         )
       }
