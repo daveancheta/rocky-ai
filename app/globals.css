@@ -283,73 +283,9 @@
 .privacy-note p { margin: 0; color: var(--taupe); font-size: 10px; line-height: 1.55; }
 .privacy-note strong { color: var(--foreground); font-size: 10px; font-weight: 600; }
 
-.primary-action { display: inline-flex; align-items: center; gap: 7px; height: 37px !important; padding: 0 13px !important; border-radius: 7px !important; background: #39352e !important; font-size: 11px !important; }
-.memory-privacy { display: flex; flex-direction: row; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 16px; border: 1px solid #eae3d5; border-radius: 10px; background: #fbf9f4; }
-.dark .memory-privacy { background: var(--card); border-color: var(--border); }
-.privacy-lock { display: grid; flex: 0 0 auto; width: 32px; height: 32px; place-items: center; border-radius: 50%; color: #88734e; background: #f0eadd; }
-.memory-privacy strong { font-size: 11px; font-weight: 600; }
-.memory-privacy p { margin: 4px 0 0; color: var(--taupe); font-size: 10px; line-height: 1.5; }
-.memory-privacy .sample-label { margin-left: auto; white-space: nowrap; }
-.memory-suggestions { display: grid; gap: 10px; margin-bottom: 20px; padding: 15px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
-.memory-suggestions > div:first-child strong { font-size: 12px; font-weight: 600; }
-.memory-suggestions > div:first-child p { margin: 4px 0 0; color: var(--taupe); font-size: 10px; line-height: 1.5; }
-.memory-suggestion-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.memory-suggestion-controls .setting-select { flex: 1; min-width: 180px; }
-.memory-suggestion-note { margin: 0; color: var(--taupe); font-size: 10px; }
-.memory-consent { display: flex; align-items: flex-start; gap: 7px; grid-column: 1 / -1; color: var(--taupe); font-size: 10px; line-height: 1.45; }
-.memory-candidate-list { display: grid; gap: 8px; }
-.memory-candidate { display: grid; gap: 6px; padding: 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); }
-.memory-candidate > strong { font-size: 11px; }
-.memory-candidate p { margin: 0; color: var(--taupe); font-size: 11px; line-height: 1.5; }
-.memory-candidate > div { display: flex; gap: 12px; }
-.memory-candidate .text-button { padding-left: 0; }
-.memory-card .memory-updated { overflow-wrap: anywhere; }
 .settings-memory-error { margin: 8px 0 8px 42px; color: #8e5047; font-size: 10px; }
-.dark .memory-suggestions, .dark .memory-candidate { background: var(--card); }
-.new-memory-form { margin: -7px 0 22px; padding: 17px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
-.form-topline { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; font-size: 12px; }
-.form-topline span { color: var(--taupe); font-size: 10px; }
-.memory-form-grid { display: grid; grid-template-columns: minmax(150px, 1fr) 165px; gap: 9px; }
-.memory-form-grid input, .memory-form-grid [data-slot="select-trigger"], .edit-memory-form input, .edit-memory-form [data-slot="textarea"] { min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--background); color: var(--foreground); font-size: 11px; }
-.memory-detail-input { grid-column: 1 / 2; }
-.memory-form-content { display: grid; gap: 12px; }
-.save-memory-button { height: 36px !important; background: #39352e !important; font-size: 11px !important; }
-.memory-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.memory-search { display: flex; align-items: center; gap: 9px; width: min(370px, 100%); height: 38px; padding: 0 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: #9b9387; }
-.memory-search:focus-within { border-color: #cbbb9d; box-shadow: 0 0 0 3px rgb(198 173 122 / 11%); }
-.memory-search input { width: 100%; border: 0; outline: 0; color: var(--foreground); background: transparent; font-size: 11px; }
-.memory-search input::placeholder { color: #aaa397; }
-.memory-count { color: var(--taupe); font-size: 10px; }
-.category-list { display: flex; flex-wrap: wrap; gap: 7px; margin: 13px 0 18px; }
-.category-chip { padding: 7px 11px; border: 1px solid var(--border); border-radius: 20px; color: #817b72; background: var(--card); font-size: 10px; cursor: pointer; transition: all .15s; }
-.category-chip:hover { border-color: #d6c9ae; color: var(--foreground); }
-.category-chip.selected { border-color: #d9cba9; color: #66583c; background: #f1ece1; }
-.dark .category-chip.selected { color: #e3d4b5; background: #403a30; }
-.memory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.memory-card { min-height: 154px; padding: 15px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); transition: box-shadow .18s, transform .18s; }
-.memory-card:hover { transform: translateY(-1px); box-shadow: 0 7px 17px rgb(66 54 35 / 5%); }
-.memory-card-top { display: flex; align-items: center; justify-content: space-between; }
-.memory-category { padding: 5px 8px; border-radius: 20px; color: #867555; background: #f5f1e8; font-size: 10px; }
-.dark .memory-category { background: #3b362e; color: #d4c39f; }
-.memory-actions { display: flex; gap: 2px; }
-.memory-actions .icon-button { width: 25px; height: 25px; }
-.delete-action:hover { color: #a35f52; background: #fbf1ef; }
-.memory-card h2 { margin: 13px 0 5px; font-family: var(--font-display); font-size: 19px; font-weight: 400; letter-spacing: -.2px; }
-.memory-detail { min-height: 32px; margin: 0; color: var(--taupe); font-size: 13px; line-height: 1.55; }
-.memory-updated { display: block; margin-top: 12px; color: #a19a8e; font-size: 10px; }
-.edit-memory-form { display: grid; gap: 7px; margin-top: 10px; }
-.edit-memory-form [data-slot="textarea"] { height: auto; min-height: 60px; padding-top: 8px; resize: vertical; }
-.edit-memory-form button { justify-self: end; }
-.memories-empty { display: flex; flex-direction: column; align-items: center; padding: 46px 15px; border: 1px dashed var(--border); border-radius: 12px; text-align: center; }
-.memories-empty h2 { margin: 12px 0 5px; font-family: var(--font-display); font-size: 21px; font-weight: 400; }
-.memories-empty p { margin: 0; color: var(--taupe); font-size: 11px; }
-.text-button { padding: 5px 7px; border: 0; color: #8a744d; background: transparent; font-size: 10px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.memories-empty .text-button { margin-top: 11px; }
-.memories-loading { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 150px; color: var(--taupe); font-size: 11px; }
 .loading-spinner { width: 15px; height: 15px; border: 2px solid var(--border); border-top-color: var(--champagne); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.memory-error { padding: 10px 12px; border-radius: 7px; color: #8e5047; background: #fbf1ef; font-size: 10px; }
-.memories-disclaimer { margin: 18px 0 0; color: #9d968a; text-align: center; font-size: 9px; }
 
 .settings-page { max-width: 960px; }
 .settings-section { margin-bottom: 13px; padding: 18px 20px 8px; border: 1px solid var(--border); border-radius: 11px; background: var(--card); }
@@ -457,14 +393,6 @@
   .conversation-card { order: 1; }
   .message-list { min-height: 260px; max-height: 370px; }
   .conversation-heading { padding: 16px 14px 13px; }
-  .memory-privacy { align-items: flex-start; padding: 12px; }
-  .memory-privacy .sample-label { margin-top: 2px; font-size: 7px; }
-  .memory-privacy .sample-label { white-space: normal; }
-  .memory-grid { grid-template-columns: minmax(0, 1fr); }
-  .memory-card { min-height: 140px; }
-  .memory-form-grid { grid-template-columns: 1fr; }
-  .memory-detail-input { grid-column: auto; }
-  .save-memory-button { justify-self: end; min-width: 90px; }
   .settings-section { padding: 15px 13px 7px; }
   .settings-section-heading { gap: 9px; }
   .setting-row, .appearance-options, .settings-hint, .privacy-callout, .settings-memory-error { margin-left: 0; }
