@@ -172,8 +172,8 @@
 .fullscreen-close { display: inline-flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font-size: 10px; cursor: pointer; }
 .fullscreen-close:hover { background: var(--muted); }
 .fullscreen-close-mobile { display: none; }
-.fullscreen-content { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr) minmax(350px, .75fr); align-items: center; gap: clamp(24px, 6vw, 90px); width: min(1120px, 100%); margin: 20px auto; }
-.fullscreen-presence { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 540px; padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(145deg, var(--card), var(--background)); text-align: center; }
+.fullscreen-content { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr); align-items: center; width: min(820px, 100%); margin: 20px auto; }
+.fullscreen-presence { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: min(650px, calc(100dvh - 130px)); padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(145deg, var(--card), var(--background)); text-align: center; }
 .fullscreen-orb { width: 230px; height: 230px; margin: 35px 0 22px; }
 .fullscreen-orb .ring-two { inset: 18px; }
 .fullscreen-orb .ring-three { inset: 39px; }
@@ -186,9 +186,6 @@
 .fullscreen-controls .control-button { height: 38px !important; padding: 0 13px !important; font-size: 11px !important; }
 .fullscreen-controls .mic-button { height: 40px !important; padding: 0 17px !important; font-size: 12px !important; }
 .fullscreen-presence .presence-footnote { margin-top: 13px; }
-.fullscreen-chat { width: 100%; max-width: 470px; margin: 0 auto; }
-.fullscreen-chat .conversation-card { box-shadow: 0 12px 40px rgb(63 52 34 / 5%); }
-.fullscreen-chat .message-list { min-height: min(48vh, 410px); max-height: 55vh; }
 .fullscreen-demo-note { flex: 0 0 auto; margin: 0; color: #a19a8e; text-align: center; font-size: 8px; letter-spacing: 1px; }
 
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
@@ -381,14 +378,12 @@
   .message-list { min-height: 260px; max-height: 360px; }
   .privacy-note { align-self: start; }
   .presence-panel { min-height: 300px; }
-  .fullscreen-content { grid-template-columns: minmax(0, 1fr); align-content: start; gap: 16px; max-width: 700px; }
+  .fullscreen-content { align-content: center; max-width: 700px; }
   .fullscreen-presence { min-height: auto; padding: 22px; }
   .fullscreen-orb { width: 170px; height: 170px; margin: 20px 0 15px; }
   .fullscreen-orb .ring-two { inset: 14px; }
   .fullscreen-orb .ring-three { inset: 30px; }
   .fullscreen-orb .orb-core { width: 96px; height: 96px; }
-  .fullscreen-chat { max-width: 700px; }
-  .fullscreen-chat .message-list { min-height: 240px; max-height: 38vh; }
 }
 @media (max-width: 700px) {
   .sidebar { display: none; }
@@ -451,7 +446,7 @@
   .fullscreen-close { width: 34px; height: 34px; justify-content: center; padding: 0; }
   .fullscreen-close > svg:first-child, .fullscreen-close span { display: none; }
   .fullscreen-close-mobile { display: block; }
-  .fullscreen-content { gap: 11px; margin: 11px auto; }
+  .fullscreen-content { margin: 11px auto; }
   .fullscreen-presence { padding: 15px 9px 12px; border-radius: 12px; }
   .fullscreen-orb { width: 120px; height: 120px; margin: 12px 0 9px; }
   .fullscreen-orb .ring-two { inset: 10px; }
@@ -463,9 +458,6 @@
   .fullscreen-controls { flex-wrap: wrap; margin-top: 15px; }
   .fullscreen-controls .control-button { height: 34px !important; padding: 0 9px !important; font-size: 9px !important; }
   .fullscreen-controls .mic-button { height: 36px !important; padding: 0 11px !important; font-size: 10px !important; }
-  .fullscreen-chat .conversation-heading { padding: 12px 13px 10px; }
-  .fullscreen-chat .conversation-heading h2 { font-size: 20px; }
-  .fullscreen-chat .message-list { min-height: 165px; max-height: 27vh; padding: 12px; }
   .fullscreen-demo-note { padding-top: 3px; }
 }
 @media (max-width: 390px) {

@@ -6,7 +6,6 @@ import { Camera, Maximize2, Mic, Minimize2, Pause, Play, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { useRockyStore } from "@/stores/rocky-store"
-import { ConversationPanel } from "@/components/chat/conversation-panel"
 
 const stateLabels = {
   idle: "Ready when you are",
@@ -159,7 +158,7 @@ export function RockyPresence() {
               <X className="fullscreen-close-mobile" size={17} />
             </button>
           </header>
-          <div className="fullscreen-content">
+          <main className="fullscreen-content">
             <section className="fullscreen-presence" aria-label="ROCKY visual presence">
               <span className="eyebrow"><span className="status-dot" /> YOUR COMPANION</span>
               <div className="fullscreen-orb presence-orb" aria-hidden="true">
@@ -174,8 +173,7 @@ export function RockyPresence() {
               <div className="presence-controls fullscreen-controls">{controls}</div>
               <p className="presence-footnote">Microphone and camera are not connected in this demo.</p>
             </section>
-            <div className="fullscreen-chat"><ConversationPanel /></div>
-          </div>
+          </main>
           <p className="fullscreen-demo-note">ROCKY UI DEMO · Sample replies only</p>
         </div>,
         document.body,
