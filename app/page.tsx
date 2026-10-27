@@ -1,7 +1,6 @@
 "use client"
 
 import { useSyncExternalStore } from "react"
-import { useSettingsStore } from "@/stores/settings-store"
 import { CompanionExperience } from "@/components/companion/companion-experience"
 
 const subscribeToNothing = () => () => {}
@@ -12,10 +11,9 @@ const getGreeting = () => {
 
 export default function Home() {
   const greeting = useSyncExternalStore(subscribeToNothing, getGreeting, () => "Welcome")
-  const personality = useSettingsStore((store) => store.personality)
   return (
     <div className="page home-page companion-page">
-      <CompanionExperience greeting={greeting} personality={personality} />
+      <CompanionExperience greeting={greeting} />
     </div>
   )
 }

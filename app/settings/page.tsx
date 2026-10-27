@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { AudioLines, Check, ChevronRight, Eye, Mic, Moon, Sun, Monitor, ShieldCheck, Volume2 } from "lucide-react"
-import { useSettingsStore, type Appearance, type Personality } from "@/stores/settings-store"
+import { Check, ChevronRight, Eye, Moon, Sun, Monitor, ShieldCheck } from "lucide-react"
+import { useSettingsStore, type Appearance } from "@/stores/settings-store"
 import { useMemoryStore } from "@/stores/memory-store"
 import { getMemoryPreference, updateMemoryPreference } from "@/lib/api/memories"
 import { Button } from "@/components/ui/button"
@@ -15,8 +15,6 @@ const appearances: Array<{ value: Appearance; label: string; icon: typeof Sun }>
   { value: "dark", label: "Dark", icon: Moon },
   { value: "system", label: "System", icon: Monitor },
 ]
-const personalities: Personality[] = ["Calm", "Friendly", "Playful", "Supportive"]
-
 function PreferenceToggle({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <Switch className="setting-switch data-checked:bg-primary" checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled} />
@@ -26,16 +24,10 @@ function PreferenceToggle({ checked, onChange, label, disabled = false }: { chec
 export default function SettingsPage() {
   const appearance = useSettingsStore((store) => store.appearance)
   const setAppearance = useSettingsStore((store) => store.setAppearance)
-  const personality = useSettingsStore((store) => store.personality)
-  const setPersonality = useSettingsStore((store) => store.setPersonality)
   const memoryEnabled = useSettingsStore((store) => store.memoryEnabled)
   const setMemoryEnabled = useSettingsStore((store) => store.setMemoryEnabled)
   const cameraMonitoring = useSettingsStore((store) => store.cameraMonitoring)
   const setCameraMonitoring = useSettingsStore((store) => store.setCameraMonitoring)
-  const microphoneEnabled = useSettingsStore((store) => store.microphoneEnabled)
-  const setMicrophoneEnabled = useSettingsStore((store) => store.setMicrophoneEnabled)
-  const speakReplies = useSettingsStore((store) => store.speakReplies)
-  const setSpeakReplies = useSettingsStore((store) => store.setSpeakReplies)
   const clearMemories = useMemoryStore((store) => store.clear)
   const [cleared, setCleared] = useState(false)
   const [memoryPreferenceLoading, setMemoryPreferenceLoading] = useState(true)
@@ -108,26 +100,8 @@ export default function SettingsPage() {
         <p className="settings-hint">Dark mode is available. System follows your device preference.</p>
       </Card>
 
-      <Card role="region" aria-labelledby="personality-heading" className="settings-section gap-0 ring-0">
-        <div className="settings-section-heading"><span className="settings-section-icon"><AudioLines size={17} /></span><div><h2 id="personality-heading">Voice & personality</h2><p>Shape the way Rocky feels in conversation.</p></div></div>
-        <div className="setting-row personality-row">
-          <div><strong>Personality</strong><span>Choose a tone that feels right to you.</span></div>
-          <div className="personality-options" role="group" aria-label="Personality">
-            {personalities.map((item) => <Button type="button" variant={personality === item ? "secondary" : "outline"} size="sm" key={item} className={personality === item ? "selected" : ""} onClick={() => setPersonality(item)} aria-pressed={personality === item}>{item}</Button>)}
-          </div>
-        </div>
-        <div className="setting-row">
-          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Speak replies</strong><span>Use your browser&apos;s built-in speech voice while companion mode is active. No audio is sent to Rocky.</span></div></div>
-          <PreferenceToggle checked={speakReplies} onChange={setSpeakReplies} label="Speak replies aloud" />
-        </div>
-      </Card>
-
       <Card role="region" aria-labelledby="devices-heading" className="settings-section gap-0 ring-0">
-        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2 id="devices-heading">Camera & microphone</h2><p>Browser access is requested only from an active companion session or push-to-talk action.</p></div></div>
-        <div className="setting-row">
-          <div className="setting-row-icon"><Mic size={17} /><div><strong>Push-to-talk</strong><span>Recording starts only when you activate it. Audio is sent for transcription and is not stored.</span></div></div>
-          <PreferenceToggle checked={microphoneEnabled} onChange={setMicrophoneEnabled} label="Enable push-to-talk microphone" />
-        </div>
+        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2 id="devices-heading">Camera</h2><p>Browser access is requested only from an active companion session.</p></div></div>
         <div className="setting-row">
           <div className="setting-row-icon"><Eye size={17} /><div><strong>Allow camera during companion mode</strong><span>When enabled here, starting a session requests camera access and analyzes a still frame about once a minute. Frames aren&apos;t saved.</span></div></div>
           <PreferenceToggle checked={cameraMonitoring} onChange={setCameraMonitoring} label="Allow camera monitoring during companion mode" />

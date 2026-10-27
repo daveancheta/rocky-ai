@@ -6,14 +6,13 @@ import { useAwarenessStore } from "@/stores/awareness-store"
 import { useSettingsStore } from "@/stores/settings-store"
 import { useCompanionStore } from "@/stores/companion-store"
 import { RockyPresence } from "@/components/rocky/rocky-presence"
-import { ConversationPanel } from "@/components/chat/conversation-panel"
 import { VisionObserver } from "@/components/companion/vision-observer"
 
 function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop())
 }
 
-export function CompanionExperience({ greeting, personality }: { greeting: string; personality: string }) {
+export function CompanionExperience({ greeting }: { greeting: string }) {
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [settingsReady, setSettingsReady] = useState(false)
@@ -29,7 +28,6 @@ export function CompanionExperience({ greeting, personality }: { greeting: strin
   const end = useCallback(() => {
     sessionTokenRef.current += 1
     useChatStore.getState().cancelCurrent()
-    window.speechSynthesis?.cancel()
     stopStream(streamRef.current)
     streamRef.current = null
     setStream(null)
@@ -90,7 +88,6 @@ export function CompanionExperience({ greeting, personality }: { greeting: strin
   useEffect(() => () => {
     sessionTokenRef.current += 1
     useChatStore.getState().cancelCurrent()
-    window.speechSynthesis?.cancel()
     stopStream(streamRef.current)
     useCompanionStore.getState().end()
     useAwarenessStore.getState().clearLatestVisionObservation()
@@ -104,14 +101,12 @@ export function CompanionExperience({ greeting, personality }: { greeting: strin
           <h1>{greeting}<span className="heading-period">.</span></h1>
           <p>A little space for whatever&apos;s on your mind.</p>
         </div>
-        <span className="header-personality">{personality} companion</span>
       </header>
       {stream && isActive && <VisionObserver stream={stream} />}
       <div className="companion-layout">
         <div className="companion-stage">
           <RockyPresence onToggle={() => void toggle()} isStarting={isStarting} disabled={!settingsReady} />
         </div>
-        <ConversationPanel />
       </div>
     </section>
   )

@@ -1,17 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
-import { ArrowUp, Check, LoaderCircle, MessageCircle, Mic, Plus, RotateCcw, Square, X } from "lucide-react"
+import { ArrowUp, Check, LoaderCircle, MessageCircle, Mic, RotateCcw, Square, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useChatStore } from "@/stores/chat-store"
 import { MessageBubble } from "@/components/chat/message-bubble"
 import { useVoiceInput } from "@/components/chat/use-voice-input"
@@ -20,22 +13,16 @@ import { useSettingsStore } from "@/stores/settings-store"
 
 export function ConversationPanel() {
   const messages = useChatStore((store) => store.messages)
-  const conversations = useChatStore((store) => store.conversations)
-  const conversationId = useChatStore((store) => store.conversationId)
   const isLoadingHistory = useChatStore((store) => store.isLoadingHistory)
   const historyError = useChatStore((store) => store.historyError)
   const isSending = useChatStore((store) => store.isSending)
   const error = useChatStore((store) => store.error)
   const lastMessage = useChatStore((store) => store.lastMessage)
   const loadHistory = useChatStore((store) => store.loadHistory)
-  const selectConversation = useChatStore((store) => store.selectConversation)
-  const startNewConversation = useChatStore((store) => store.startNewConversation)
   const sendMessage = useChatStore((store) => store.sendMessage)
   const retry = useChatStore((store) => store.retry)
   const isCompanionActive = useCompanionStore((store) => store.isActive)
   const setCompanionStatus = useCompanionStore((store) => store.setStatus)
-  const setSessionNotice = useCompanionStore((store) => store.setSessionNotice)
-  const speakReplies = useSettingsStore((store) => store.speakReplies)
   const microphoneEnabled = useSettingsStore((store) => store.microphoneEnabled)
   const [draft, setDraft] = useState("")
   const submitTranscript = useCallback((transcript: string) => {
@@ -45,8 +32,6 @@ export function ConversationPanel() {
   const voice = useVoiceInput(submitTranscript)
   const cancelVoice = voice.cancel
   const endRef = useRef<HTMLDivElement>(null)
-  const wasSendingRef = useRef(false)
-  const previousAssistantIdRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     void loadHistory()
@@ -59,43 +44,12 @@ export function ConversationPanel() {
   useEffect(() => {
     if (!isCompanionActive) {
       cancelVoice()
-      window.speechSynthesis?.cancel()
       return
     }
     if (voice.status === "recording") setCompanionStatus("listening")
     else if (voice.status === "processing" || isSending) setCompanionStatus("thinking")
     else if (["listening", "thinking"].includes(useCompanionStore.getState().status)) setCompanionStatus("ready")
   }, [cancelVoice, isCompanionActive, isSending, setCompanionStatus, voice.status])
-
-  useEffect(() => {
-    if (isSending) {
-      wasSendingRef.current = true
-      previousAssistantIdRef.current = messages.at(-1)?.role === "assistant" ? messages.at(-1)?.id : undefined
-      return
-    }
-    if (!wasSendingRef.current) return
-    wasSendingRef.current = false
-    const answer = messages.at(-1)
-    if (answer?.role !== "assistant" || answer.id === previousAssistantIdRef.current) return
-    if (isCompanionActive && speakReplies && !window.speechSynthesis) {
-      setSessionNotice("Spoken replies aren't supported in this browser. Text chat remains available.")
-      return
-    }
-    if (!isCompanionActive || !speakReplies) {
-      if (isCompanionActive && useCompanionStore.getState().status === "thinking") setCompanionStatus("ready")
-      return
-    }
-    const speech = new SpeechSynthesisUtterance(answer.content)
-    speech.onstart = () => setCompanionStatus("speaking")
-    speech.onend = () => {
-      if (useCompanionStore.getState().isActive) setCompanionStatus("ready")
-    }
-    speech.onerror = () => {
-      if (useCompanionStore.getState().isActive) setCompanionStatus("ready")
-    }
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(speech)
-  }, [isSending, isCompanionActive, messages, setCompanionStatus, setSessionNotice, speakReplies])
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -110,51 +64,6 @@ export function ConversationPanel() {
 
   return (
     <Card role="region" aria-label="Conversation with Rocky" className="conversation-card gap-0 py-0 ring-0">
-      <div className="section-heading conversation-heading">
-        <div>
-          <span className="eyebrow">A THOUGHTFUL CONVERSATION</span>
-          <h2>Let’s talk</h2>
-        </div>
-        <div className="conversation-controls">
-          <label className="visually-hidden" htmlFor="conversation-select">Choose a conversation</label>
-          <Select
-            value={conversationId ?? "new"}
-            onValueChange={(selectedId) => {
-              if (selectedId && selectedId !== "new") void selectConversation(selectedId)
-              else startNewConversation()
-            }}
-            disabled={isLoadingHistory || isSending || isVoiceBusy || conversations.length === 0}
-          >
-            <SelectTrigger id="conversation-select" aria-label="Choose a conversation" className="conversation-select">
-              <SelectValue>
-                {conversationId
-                  ? conversations.find((conversation) => conversation.id === conversationId)?.title ?? "Choose a conversation"
-                  : "New conversation"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value="new">New conversation</SelectItem>
-              {conversations.map((conversation) => (
-                <SelectItem key={conversation.id} value={conversation.id}>
-                  {conversation.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            className="new-chat-button"
-            type="button"
-            onClick={startNewConversation}
-            disabled={isLoadingHistory || isSending || isVoiceBusy}
-            aria-label="Start a new conversation"
-            title="Start a new conversation"
-          >
-            <Plus size={15} />
-          </Button>
-        </div>
-      </div>
       <div className="message-list" aria-live="polite">
         {isLoadingHistory ? (
           <div className="chat-empty"><span className="loading-spinner" /><p>Loading your conversations…</p></div>
@@ -185,10 +94,7 @@ export function ConversationPanel() {
             size="sm"
             type="button"
             className="retry-button"
-            onClick={() => {
-              if (conversationId) void selectConversation(conversationId)
-              else void loadHistory()
-            }}
+            onClick={() => void loadHistory()}
           >
             <RotateCcw size={13} /> Try again
           </Button>
@@ -262,7 +168,6 @@ export function ConversationPanel() {
           type="button"
           onClick={() => {
             if (!isCompanionActive) return
-            if (window.speechSynthesis?.speaking) window.speechSynthesis.cancel()
             if (voice.status === "recording") void voice.stopRecording()
             else if (voice.status === "idle") void voice.startRecording()
           }}
