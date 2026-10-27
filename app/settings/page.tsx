@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AudioLines, Check, ChevronRight, Eye, Mic, Moon, Sun, Monitor, ShieldCheck, Volume2 } from "lucide-react"
 import { useSettingsStore, type Appearance, type Personality } from "@/stores/settings-store"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { useMemoryStore } from "@/stores/memory-store"
+import { getMemoryPreference, updateMemoryPreference } from "@/lib/api/memories"
 
 const appearances: Array<{ value: Appearance; label: string; icon: typeof Sun }> = [
   { value: "light", label: "Light", icon: Sun },
@@ -14,9 +15,9 @@ const appearances: Array<{ value: Appearance; label: string; icon: typeof Sun }>
 ]
 const personalities: Personality[] = ["Calm", "Friendly", "Playful", "Supportive"]
 
-function PreferenceToggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
+function PreferenceToggle({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
   return (
-    <button className={`toggle ${checked ? "on" : ""}`} role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}>
+    <button className={`toggle ${checked ? "on" : ""}`} role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}>
       <span />
     </button>
   )
@@ -37,6 +38,53 @@ export default function SettingsPage() {
   const setAwarenessEnabled = useAwarenessStore((store) => store.setEnabled)
   const clearMemories = useMemoryStore((store) => store.clear)
   const [cleared, setCleared] = useState(false)
+  const [memoryPreferenceLoading, setMemoryPreferenceLoading] = useState(true)
+  const [memoryPreferenceError, setMemoryPreferenceError] = useState<string>()
+  const [isClearingMemories, setIsClearingMemories] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    void getMemoryPreference()
+      .then(({ enabled }) => {
+        if (active) setMemoryEnabled(enabled)
+      })
+      .catch(() => {
+        if (active) setMemoryPreferenceError("Could not load the saved memory preference.")
+      })
+      .finally(() => {
+        if (active) setMemoryPreferenceLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [setMemoryEnabled])
+
+  const saveMemoryPreference = async (enabled: boolean) => {
+    setMemoryPreferenceError(undefined)
+    try {
+      await updateMemoryPreference(enabled)
+      setMemoryEnabled(enabled)
+    } catch (error) {
+      setMemoryPreferenceError(
+        error instanceof Error ? error.message : "Memory preference could not be saved.",
+      )
+    }
+  }
+
+  const handleClearMemories = async () => {
+    setIsClearingMemories(true)
+    setMemoryPreferenceError(undefined)
+    try {
+      await clearMemories()
+      setCleared(true)
+    } catch (error) {
+      setMemoryPreferenceError(
+        error instanceof Error ? error.message : "Memories could not be cleared.",
+      )
+    } finally {
+      setIsClearingMemories(false)
+    }
+  }
 
   return (
     <div className="page settings-page">
@@ -100,17 +148,18 @@ export default function SettingsPage() {
       <section className="settings-section">
         <div className="settings-section-heading"><span className="settings-section-icon"><ShieldCheck size={17} /></span><div><h2>Memory & privacy</h2><p>You stay in control of what Rocky remembers.</p></div></div>
         <div className="setting-row">
-          <div><strong>Memory preference</strong><span>Choose whether Rocky may save context with your permission.</span></div>
-          <PreferenceToggle checked={memoryEnabled} onChange={setMemoryEnabled} label="Enable memory preference" />
+          <div><strong>Use approved memories</strong><span>When off, saved memories stay stored but are not included in AI requests or suggestion generation.</span></div>
+          <PreferenceToggle checked={memoryEnabled} onChange={(enabled) => void saveMemoryPreference(enabled)} label="Use approved memories" disabled={memoryPreferenceLoading} />
         </div>
+        {memoryPreferenceError && <p className="settings-memory-error" role="alert">{memoryPreferenceError}</p>}
         <Link href="/memories" className="setting-row setting-link">
-          <div><strong>Review sample memories</strong><span>See and manage the local demo content.</span></div><ChevronRight size={17} />
+          <div><strong>Review saved memories</strong><span>Review, edit, or remove information Rocky may use. Nothing from chat is saved automatically.</span></div><ChevronRight size={17} />
         </Link>
         <div className="setting-row">
-          <div><strong>Clear sample memories</strong><span>{cleared ? "Sample memories cleared for this demo." : "This removes the sample entries from this page."}</span></div>
-          <button className="text-button" onClick={() => { clearMemories(); setCleared(true) }}>{cleared ? "Cleared" : "Clear all"}</button>
+          <div><strong>Delete all saved memories</strong><span>{cleared ? "All saved memories were deleted." : "Permanently remove every saved memory for this browser."}</span></div>
+          <button className="text-button" disabled={isClearingMemories} onClick={() => void handleClearMemories()}>{isClearingMemories ? "Deleting…" : cleared ? "Delete again" : "Delete all"}</button>
         </div>
-        <div className="privacy-callout"><ShieldCheck size={16} /><p>Settings and sample memory changes are stored only in this browser’s local demo state. No personal data is sent to a server.</p></div>
+        <div className="privacy-callout"><ShieldCheck size={16} /><p>Approved memories and this preference are stored in Neon. Memory use is off when disabled. This app has no sign-in yet, so the HttpOnly browser cookie scopes access; it is not account authentication or cross-device isolation.</p></div>
       </section>
       <div className="settings-footer"><span><Check size={14} /> Your preferences are saved in this browser</span><span>ROCKY · UI DEMO</span></div>
     </div>

@@ -82,7 +82,7 @@ async function readMetaResponseText(response: Response): Promise<string> {
 
 export async function generateWithMuseSpark(
   request: unknown,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; instructions?: string } = {},
 ): Promise<MuseSparkResult> {
   const parsedRequest = validateMuseSparkInput(request)
   if (!parsedRequest.success) {
@@ -105,6 +105,9 @@ export async function generateWithMuseSpark(
       body: JSON.stringify({
         model: MUSE_SPARK_MODEL,
         input: parsedRequest.data.input,
+        ...(options.instructions
+          ? { instructions: options.instructions.slice(0, 4_000) }
+          : {}),
       }),
       signal: options.signal,
     })

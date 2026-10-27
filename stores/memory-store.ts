@@ -1,37 +1,12 @@
 import { create } from "zustand"
-import { getMemories } from "@/lib/api/memories"
-import type { Memory, MemoryCategory } from "@/types/memory"
-
-const sampleMemories: Memory[] = [
-  {
-    id: "pref-morning",
-    category: "Preferences",
-    title: "A gentle start",
-    detail: "You prefer a little quiet time before the day gets busy.",
-    updatedAt: "Sample memory · today",
-  },
-  {
-    id: "goal-walk",
-    category: "Goals",
-    title: "More time outdoors",
-    detail: "You'd like to make room for a walk a few times each week.",
-    updatedAt: "Sample memory · yesterday",
-  },
-  {
-    id: "people-sam",
-    category: "People",
-    title: "Sam's visit",
-    detail: "Your friend Sam is someone you enjoy catching up with.",
-    updatedAt: "Sample memory · Oct 18",
-  },
-  {
-    id: "task-interview",
-    category: "Ongoing tasks",
-    title: "Prepare for an interview",
-    detail: "You wanted to set aside time to practice your introduction.",
-    updatedAt: "Sample memory · Oct 16",
-  },
-]
+import {
+  createMemory,
+  deleteAllMemories,
+  deleteMemory,
+  getMemories,
+  updateMemory,
+} from "@/lib/api/memories"
+import type { Memory, MemoryCategory, MemoryCandidate } from "@/types/memory"
 
 type MemoryStore = {
   memories: Memory[]
@@ -42,14 +17,16 @@ type MemoryStore = {
   fetchMemories: (signal?: AbortSignal) => Promise<void>
   setQuery: (query: string) => void
   setCategory: (category: MemoryCategory | "All") => void
-  create: (memory: Omit<Memory, "id" | "updatedAt">) => void
-  update: (id: string, title: string, detail: string) => void
-  remove: (id: string) => void
-  clear: () => void
+  create: (
+    memory: MemoryCandidate & { sourceConversationId?: string },
+  ) => Promise<Memory>
+  update: (id: string, updates: Partial<MemoryCandidate>) => Promise<void>
+  remove: (id: string) => Promise<void>
+  clear: () => Promise<void>
 }
 
 export const useMemoryStore = create<MemoryStore>((set) => ({
-  memories: sampleMemories,
+  memories: [],
   query: "",
   category: "All",
   isLoading: false,
@@ -68,28 +45,64 @@ export const useMemoryStore = create<MemoryStore>((set) => ({
   },
   setQuery: (query) => set({ query }),
   setCategory: (category) => set({ category }),
-  create: (memory) =>
-    set((state) => ({
-      memories: [
-        {
-          ...memory,
-          id: crypto.randomUUID(),
-          updatedAt: "Local demo · just now",
-        },
-        ...state.memories,
-      ],
-    })),
-  update: (id, title, detail) =>
-    set((state) => ({
-      memories: state.memories.map((memory) =>
-        memory.id === id
-          ? { ...memory, title, detail, updatedAt: "Local demo · just now" }
-          : memory,
-      ),
-    })),
-  remove: (id) =>
-    set((state) => ({
-      memories: state.memories.filter((memory) => memory.id !== id),
-    })),
-  clear: () => set({ memories: [] }),
+  create: async (memory) => {
+    set({ error: undefined })
+    try {
+      const saved = await createMemory({ ...memory, approved: true })
+      set((state) => ({
+        memories: [
+          saved,
+          ...state.memories.filter((item) => item.id !== saved.id),
+        ],
+      }))
+      return saved
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Unable to save memory.",
+      })
+      throw error
+    }
+  },
+  update: async (id, updates) => {
+    set({ error: undefined })
+    try {
+      const updated = await updateMemory(id, updates)
+      set((state) => ({
+        memories: state.memories.map((memory) =>
+          memory.id === id ? updated : memory,
+        ),
+      }))
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Unable to update memory.",
+      })
+      throw error
+    }
+  },
+  remove: async (id) => {
+    set({ error: undefined })
+    try {
+      await deleteMemory(id)
+      set((state) => ({
+        memories: state.memories.filter((memory) => memory.id !== id),
+      }))
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Unable to delete memory.",
+      })
+      throw error
+    }
+  },
+  clear: async () => {
+    set({ error: undefined })
+    try {
+      await deleteAllMemories()
+      set({ memories: [] })
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Unable to clear memories.",
+      })
+      throw error
+    }
+  },
 }))
