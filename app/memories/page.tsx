@@ -202,7 +202,7 @@ export default function MemoriesPage() {
         </Button>
       </header>
 
-      <Card className="flex-row items-start gap-4 border-accent/30 bg-accent/5 p-4 shadow-none">
+      <Card className="flex-row items-center gap-4 border-accent/30 bg-accent/5 p-4 shadow-none">
         <div className="mt-0.5 rounded-lg bg-accent/15 p-2 text-accent-foreground">
           <ShieldCheck size={18} />
         </div>

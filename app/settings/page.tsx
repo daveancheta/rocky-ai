@@ -28,7 +28,7 @@ const personalities: Personality[] = ["Calm", "Friendly", "Playful", "Supportive
 
 function PreferenceToggle({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
   return (
-    <Switch className="setting-switch data-checked:bg-[#9a8965]" checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled} />
+    <Switch className="setting-switch data-checked:bg-primary" checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled} />
   )
 }
 
