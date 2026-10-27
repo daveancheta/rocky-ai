@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { transcribeVoiceRecording } from "@/lib/api/voice"
 import { encodeMonoPcmWav } from "@/lib/audio/wav"
+import { hasUtteranceEnded, hasVoiceActivity, measureAudioRms } from "@/lib/audio/voice-activity"
 import { stopCompanionSpeech } from "@/lib/voice/speech-controller"
 
 const MAX_RECORDING_MS = 120_000
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024
+const VAD_CALIBRATION_MS = 350
+const PREROLL_CHUNKS = 8
 
 type VoiceStatus = "idle" | "requesting" | "recording" | "processing"
 
@@ -14,7 +17,7 @@ function stopTracks(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop())
 }
 
-export function useVoiceInput(onTranscript: (transcript: string) => void) {
+export function useVoiceInput(onTranscript: (transcript: string) => void, autoListen = false) {
   const [status, setStatus] = useState<VoiceStatus>("idle")
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [transcript, setTranscript] = useState("")
@@ -27,6 +30,11 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const sampleChunksRef = useRef<Float32Array[]>([])
+  const prerollChunksRef = useRef<Float32Array[]>([])
+  const voiceDetectedRef = useRef(false)
+  const noiseFloorRef = useRef(0.002)
+  const lastVoiceActivityAtRef = useRef(0)
+  const automaticRecordingRef = useRef(false)
   const startedAtRef = useRef(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -66,6 +74,8 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
     actionIdRef.current += 1
     const samples = sampleChunksRef.current
     sampleChunksRef.current = []
+    voiceDetectedRef.current = false
+    prerollChunksRef.current = []
     const sampleRate = contextRef.current?.sampleRate ?? 0
     releaseRecording()
     setRecordingSeconds(0)
@@ -119,6 +129,9 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
     abortRef.current?.abort()
     abortRef.current = null
     sampleChunksRef.current = []
+    prerollChunksRef.current = []
+    voiceDetectedRef.current = false
+    automaticRecordingRef.current = false
     releaseRecording()
     setRecordingSeconds(0)
     setTranscript("")
@@ -136,9 +149,13 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
     const actionId = actionIdRef.current + 1
     actionIdRef.current = actionId
     sampleChunksRef.current = []
+    prerollChunksRef.current = []
+    voiceDetectedRef.current = false
+    noiseFloorRef.current = 0.002
+    automaticRecordingRef.current = autoListen
     setTranscript("")
     setError("")
-    stopCompanionSpeech()
+    if (!autoListen) stopCompanionSpeech()
     changeStatus("requesting")
 
     let stream: MediaStream | null = null
@@ -171,19 +188,54 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
       processorRef.current = processor
       gainRef.current = gain
       processor.onaudioprocess = (event) => {
-        sampleChunksRef.current.push(new Float32Array(event.inputBuffer.getChannelData(0)))
+        const samples = new Float32Array(event.inputBuffer.getChannelData(0))
+        if (!autoListen) {
+          sampleChunksRef.current.push(samples)
+          return
+        }
+
+        const now = Date.now()
+        const rms = measureAudioRms(samples)
+        if (!voiceDetectedRef.current) {
+          if (now - startedAtRef.current < VAD_CALIBRATION_MS) {
+            noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15
+          } else if (hasVoiceActivity(rms, noiseFloorRef.current)) {
+            voiceDetectedRef.current = true
+            lastVoiceActivityAtRef.current = now
+            sampleChunksRef.current = [...prerollChunksRef.current, samples]
+            prerollChunksRef.current = []
+            return
+          } else {
+            noiseFloorRef.current = noiseFloorRef.current * 0.94 + rms * 0.06
+          }
+
+          prerollChunksRef.current.push(samples)
+          if (prerollChunksRef.current.length > PREROLL_CHUNKS) prerollChunksRef.current.shift()
+          return
+        }
+
+        sampleChunksRef.current.push(samples)
+        if (hasVoiceActivity(rms, noiseFloorRef.current)) lastVoiceActivityAtRef.current = now
+        else if (hasUtteranceEnded(true, lastVoiceActivityAtRef.current, now)) void stopRecording()
       }
       source.connect(processor)
       processor.connect(gain)
       gain.connect(context.destination)
       startedAtRef.current = Date.now()
       changeStatus("recording")
-      intervalRef.current = setInterval(() => {
-        setRecordingSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000))
-      }, 250)
-      timeoutRef.current = setTimeout(() => {
+      if (!autoListen) {
+        intervalRef.current = setInterval(() => {
+          setRecordingSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000))
+        }, 250)
+      }
+      const enforceMaximumDuration = () => {
+        if (autoListen && !voiceDetectedRef.current) {
+          timeoutRef.current = setTimeout(enforceMaximumDuration, MAX_RECORDING_MS)
+          return
+        }
         void stopRecording()
-      }, MAX_RECORDING_MS)
+      }
+      timeoutRef.current = setTimeout(enforceMaximumDuration, MAX_RECORDING_MS)
     } catch (caught) {
       if (stream) stopTracks(stream)
       releaseRecording()
@@ -196,7 +248,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
         )
       }
     }
-  }, [changeStatus, releaseRecording, stopRecording])
+  }, [autoListen, changeStatus, releaseRecording, stopRecording])
 
   const clearTranscript = useCallback(() => {
     setTranscript("")
@@ -205,10 +257,28 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") cancel()
+      else if (autoListen && statusRef.current === "idle" && !error) void startRecording()
     }
     document.addEventListener("visibilitychange", handleVisibilityChange)
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
-  }, [cancel])
+  }, [autoListen, cancel, error, startRecording])
+
+  useEffect(() => {
+    if (autoListen && status === "idle" && !error && document.visibilityState === "visible") {
+      let active = true
+      queueMicrotask(() => {
+        if (active && statusRef.current === "idle") void startRecording()
+      })
+      return () => { active = false }
+    }
+    if (!autoListen && automaticRecordingRef.current && status === "recording") {
+      let active = true
+      queueMicrotask(() => {
+        if (active && statusRef.current === "recording") cancel()
+      })
+      return () => { active = false }
+    }
+  }, [autoListen, cancel, error, startRecording, status])
 
   useEffect(() => {
     mountedRef.current = true

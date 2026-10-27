@@ -4,6 +4,7 @@ import { Camera, CircleStop, Play, Sparkles, X } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useCompanionStore } from "@/stores/companion-store"
+import { useSettingsStore } from "@/stores/settings-store"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { CompanionConversation } from "@/components/companion/companion-conversation"
 
@@ -25,6 +26,7 @@ const subtitleCopy = {
 
 export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: () => void; isStarting: boolean; disabled: boolean }) {
   const isActive = useCompanionStore((store) => store.isActive)
+  const microphoneEnabled = useSettingsStore((store) => store.microphoneEnabled)
   const status = useCompanionStore((store) => store.status)
   const cameraActive = useCompanionStore((store) => store.cameraActive)
   const notice = useCompanionStore((store) => store.sessionNotice)
@@ -71,7 +73,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
           <p className="presence-state">{isActive ? subtitleCopy[status] : "Start a companion session when you’re ready."}</p>
         </div>
       </div>
-      {isActive && <CompanionConversation />}
+      {isActive && <CompanionConversation voiceReady={!isStarting} />}
       {isActive && proactiveMessage && <div className="proactive-message" role="status" aria-live="polite">
         <Sparkles size={15} aria-hidden="true" />
         <p>{proactiveMessage.text}</p>
@@ -85,7 +87,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
       <Button type="button" className="companion-session-button" onClick={onToggle} disabled={disabled} aria-pressed={isActive}>
         {isStarting ? <><CircleStop size={17} /> Cancel start</> : isActive ? <><CircleStop size={17} /> End companion</> : <><Play size={17} /> Start companion</>}
       </Button>
-      <p className="presence-footnote">{isActive ? "Microphone and camera access stop when you end the session." : "Your privacy settings always apply."}</p>
+      <p className="presence-footnote">{isActive ? "Microphone and camera access stop when you end the session." : microphoneEnabled ? "Start Companion to talk naturally. Your browser may ask for microphone access." : "Enable automatic voice conversation in Settings to talk with ROCKY."}</p>
     </Card>
   )
 }

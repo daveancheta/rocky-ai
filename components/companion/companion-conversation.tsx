@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef } from "react"
-import { LoaderCircle, Mic, Square, VolumeX } from "lucide-react"
+import Link from "next/link"
+import { LoaderCircle, Mic, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useVoiceInput } from "@/components/chat/use-voice-input"
 import { useChatStore } from "@/stores/chat-store"
@@ -9,7 +10,7 @@ import { useCompanionStore } from "@/stores/companion-store"
 import { useSettingsStore } from "@/stores/settings-store"
 import { speakCompanionText, stopCompanionSpeech } from "@/lib/voice/speech-controller"
 
-export function CompanionConversation() {
+export function CompanionConversation({ voiceReady }: { voiceReady: boolean }) {
   const isActive = useCompanionStore((store) => store.isActive)
   const status = useCompanionStore((store) => store.status)
   const setStatus = useCompanionStore((store) => store.setStatus)
@@ -42,12 +43,12 @@ export function CompanionConversation() {
   const onTranscript = useCallback((transcript: string) => {
     void submit(transcript)
   }, [submit])
-  const voice = useVoiceInput(onTranscript)
+  const autoListen = isActive && voiceReady && microphoneEnabled && !isSending && !isLoadingHistory && status !== "thinking" && status !== "speaking"
+  const voice = useVoiceInput(onTranscript, autoListen)
   const voiceStatus = voice.status
   const voiceError = voice.error
   const cancelVoice = voice.cancel
   const startRecording = voice.startRecording
-  const stopRecording = voice.stopRecording
 
   useEffect(() => {
     if (isActive && !hasLoadedHistory && !historyError && !isLoadingHistory) void loadHistory()
@@ -123,23 +124,26 @@ export function CompanionConversation() {
     return () => document.removeEventListener("visibilitychange", onVisibility)
   }, [cancelVoice, isActive])
 
-  const busy = isSending || voiceStatus === "processing" || voiceStatus === "requesting"
   const voiceStatusCopy = voiceStatus === "requesting"
-    ? "Waiting for microphone permission"
+    ? "Connecting to your microphone…"
     : voiceStatus === "recording"
-      ? "Listening. Tap the microphone again to send."
+      ? "Listening automatically. Pause briefly when you’re done."
       : voiceStatus === "processing"
-        ? "Processing your speech"
+        ? "Finishing your thought…"
         : isSending
-          ? "Rocky is thinking"
-          : undefined
+          ? "ROCKY is thinking"
+          : isActive && isLoadingHistory
+            ? "Opening your conversation…"
+          : isActive && !voiceReady
+            ? "Starting your companion…"
+            : undefined
 
   return (
     <div className="companion-conversation" aria-label="Talk with Rocky">
       {isActive && latestReply && <div className="companion-reply" aria-live="polite"><span>ROCKY</span><p className="companion-latest-reply">{latestReply.content}</p></div>}
-      {isActive && voiceStatusCopy && <p className="companion-voice-status" role="status" aria-live="polite">{voiceStatusCopy}</p>}
       {isActive && (voiceError || chatError || historyError) && <div className="companion-conversation-error" role="alert">
         <span>{voiceError || chatError || "Conversation history is unavailable; you can still start a new conversation."}</span>
+        {voiceError && voiceReady && microphoneEnabled && <Button type="button" variant="ghost" size="sm" onClick={() => void startRecording()}>Retry listening</Button>}
         {chatError && <Button type="button" variant="ghost" size="sm" onClick={() => {
           pendingReplyCountRef.current = useChatStore.getState().messages.length + 1
           setStatus("thinking")
@@ -147,25 +151,15 @@ export function CompanionConversation() {
         }}>Try again</Button>}
         {historyError && <Button type="button" variant="ghost" size="sm" onClick={() => void loadHistory()}>Retry history</Button>}
       </div>}
-      <div className="companion-composer companion-voice-controls" role="group" aria-label="Voice controls">
-        {status === "speaking" && <Button type="button" variant="ghost" size="icon" className="companion-voice-button" onClick={() => stopCompanionSpeech()} aria-label="Stop Rocky speaking" title="Stop speaking"><VolumeX size={17} /></Button>}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={`companion-voice-button ${voiceStatus === "recording" ? "is-listening" : ""}`}
-          onClick={() => {
-            if (voiceStatus === "recording") void stopRecording()
-            else if (voiceStatus === "idle" && !busy && !isLoadingHistory) void startRecording()
-          }}
-          disabled={!isActive || !microphoneEnabled || busy || isLoadingHistory || (voiceStatus !== "idle" && voiceStatus !== "recording")}
-          aria-label={voiceStatus === "recording" ? "Stop recording and send" : "Start push-to-talk"}
-          title={microphoneEnabled ? "Push to talk" : "Enable microphone in Settings"}
-        >
-          {voiceStatus === "recording" ? <Square size={15} /> : voiceStatus === "requesting" || voiceStatus === "processing" ? <LoaderCircle size={16} className="animate-spin" /> : <Mic size={17} />}
-        </Button>
-      </div>
-      {isActive && !microphoneEnabled && <p className="companion-input-hint">Push-to-talk is off in Settings.</p>}
+      {isActive && <div className="companion-listening-controls" role="status" aria-live="polite">
+        {microphoneEnabled && status !== "speaking" && voiceStatusCopy && <div className={`companion-auto-listening ${voiceStatus === "recording" ? "is-listening" : ""}`}>
+          {voiceStatus === "requesting" || voiceStatus === "processing" || isSending ? <LoaderCircle size={15} className="animate-spin" /> : <Mic size={15} />}
+          <span>{voiceStatusCopy}</span>
+          {voiceStatus === "recording" && <span className="auto-listening-wave" aria-hidden="true"><i /><i /><i /></span>}
+        </div>}
+        {status === "speaking" && <div className="companion-auto-listening is-speaking"><VolumeX size={15} /><span>ROCKY is speaking</span><Button type="button" variant="ghost" size="icon" className="companion-voice-button" onClick={() => stopCompanionSpeech()} aria-label="Stop Rocky speaking" title="Stop speaking"><VolumeX size={16} /></Button></div>}
+        {!microphoneEnabled && <p className="companion-input-hint">Voice conversation is off. <Link href="/settings">Enable it in Settings</Link>.</p>}
+      </div>}
     </div>
   )
 }

@@ -35,6 +35,8 @@ export default function SettingsPage() {
   const setSpeakProactive = useSettingsStore((store) => store.setSpeakProactive)
   const speakReplies = useSettingsStore((store) => store.speakReplies)
   const setSpeakReplies = useSettingsStore((store) => store.setSpeakReplies)
+  const microphoneEnabled = useSettingsStore((store) => store.microphoneEnabled)
+  const setMicrophoneEnabled = useSettingsStore((store) => store.setMicrophoneEnabled)
   const speechVoiceURI = useSettingsStore((store) => store.speechVoiceURI)
   const setSpeechVoiceURI = useSettingsStore((store) => store.setSpeechVoiceURI)
   const speechRate = useSettingsStore((store) => store.speechRate)
@@ -191,6 +193,10 @@ export default function SettingsPage() {
           <div><strong>Voice replies</strong><span>Automatically speak ROCKY&apos;s actual chat responses when browser speech is supported.</span></div>
           <PreferenceToggle checked={speakReplies} onChange={setSpeakReplies} label="Enable voice replies" />
         </div>
+        <div className="setting-row">
+          <div><strong>Automatic voice conversation</strong><span>When Companion starts, the browser asks for microphone access. ROCKY sends each spoken phrase for transcription after about one second of silence and does not retain the recording.</span></div>
+          <PreferenceToggle checked={microphoneEnabled} onChange={setMicrophoneEnabled} label="Enable automatic voice conversation" />
+        </div>
         <div className="setting-row voice-setting-control">
           <label htmlFor="rocky-speech-voice"><strong>Voice</strong><span>Only voices provided by your browser are listed.</span></label>
           <select id="rocky-speech-voice" className="voice-setting-select" value={speechVoiceURI} onChange={(event) => setSpeechVoiceURI(event.target.value)} disabled={!speechSupported || availableVoices.length === 0}>
@@ -206,7 +212,7 @@ export default function SettingsPage() {
           <div><strong>Test Voice</strong><span>{voiceTestError ?? (speechSupported ? "Plays a short sample using your current voice and speed." : "Speech synthesis is not available in this browser.")}</span></div>
           <Button type="button" variant="outline" onClick={testVoice} disabled={!speechSupported}>{voiceTestState === "playing" ? "Stop test" : "Test Voice"}</Button>
         </div>
-        <p className="settings-hint">Hands-free listening is not supported by ROCKY&apos;s current push-to-talk transcription service.</p>
+        <p className="settings-hint">Speech is detected on this device and sent as short audio clips to the configured transcription service. ROCKY does not retain recordings, and listening stops when Companion ends.</p>
       </Card>
 
       <Card role="region" aria-labelledby="devices-heading" className="settings-section gap-0 ring-0">
