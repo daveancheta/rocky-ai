@@ -5,6 +5,7 @@ import { CalendarDays, CloudSun, Coffee, ArrowRight, BookOpen } from "lucide-rea
 import Link from "next/link"
 import { RockyPresence } from "@/components/rocky/rocky-presence"
 import { AwarenessCard } from "@/components/awareness/awareness-card"
+import { VisualAwareness } from "@/components/awareness/visual-awareness"
 import { ConversationPanel } from "@/components/chat/conversation-panel"
 import { useSettingsStore } from "@/stores/settings-store"
 import { Card } from "@/components/ui/card"
@@ -65,18 +66,19 @@ export default function Home() {
               </Card>
             </div>
           </section>
-          <div className="awareness-section">
+          <div className="awareness-section" id="visual-awareness">
             <div className="section-heading compact-heading">
               <div><span className="eyebrow">A GENTLE NUDGE</span><h2>Something to consider</h2></div>
             </div>
             <AwarenessCard />
+            <VisualAwareness />
           </div>
         </div>
         <aside className="home-aside">
           <ConversationPanel />
           <Card className="privacy-note gap-0 ring-0">
             <span className="privacy-icon"><Coffee size={15} /></span>
-            <p><strong>A note on this demo</strong><br />Companion awareness is a visual preview. Chat and memory use server services; push-to-talk audio is sent for transcription only after you stop recording.</p>
+            <p><strong>A note on this demo</strong><br />Camera analysis starts only when you choose it and confirm a still image. Images are sent to Meta for analysis, not saved by ROCKY. Chat and memory use server services; push-to-talk audio is sent for transcription only after you stop recording.</p>
           </Card>
         </aside>
       </div>

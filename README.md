@@ -22,6 +22,14 @@ Recording starts only after the user activates the microphone. The browser conve
 
 Meta Voice Transcribe is speech-to-text only; the Meta Model API does not provide text-to-speech. When a browser supports it, assistant messages offer explicitly started, pausable, and stoppable playback using that browser's native speech synthesis. Nothing is spoken automatically, and this browser voice is not a Meta model. A server-side Azure Speech TTS adapter is a compatible optional provider for a future consistent voice; see Microsoft's [text-to-speech documentation](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/text-to-speech). It would require separate credentials and is not configured in ROCKY.
 
+## Camera and image understanding
+
+The Home page's visual-awareness control is opt-in. Opening it does not activate the camera; only **Start camera** requests permission. ROCKY captures one still image, immediately stops the camera stream, and shows a preview. The image is sent only after the user selects an analysis option. Closing the dialog, stopping the camera, or navigating away releases active media tracks. Images are processed in memory and are not written to the database, filesystem, or application logs.
+
+`POST /api/vision/analyze` accepts one JPEG or PNG up to 5 MB, with dimensions limited to 4,096 pixels per side and 16 megapixels total. The server validates the upload and forwards it to Meta using the server-only `MODEL_API_KEY`. Muse Spark 1.3 (`muse-spark-1.3`) handles image questions and scene understanding; SAM 3.1 (`sam-3.1`) handles prompt-based object segmentation. See Meta's [Model API overview](https://dev.meta.ai/docs/overview) and [Responses API guide](https://dev.meta.ai/docs/protocols/responses). SAM's returned bounding boxes are drawn on the preview; pixel masks are not decoded or rendered. The integration does not identify people or infer emotion, intention, health, or other private attributes. Both models appeared in a read-only model-catalog response for the configured key, and a synthetic red-square image was successfully analyzed through the app route by both models; Muse Spark returned a grounded description and SAM 3.1 returned an object box.
+
+The app has no user-account authentication. Its existing opaque browser cookie is not an authenticated identity; do not treat it as user-specific security or expose this model-backed endpoint publicly without adding authentication and suitable abuse controls.
+
 The chat tables are managed with Drizzle migrations. Review generated SQL before applying schema changes:
 
 ```bash

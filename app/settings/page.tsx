@@ -126,8 +126,8 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="setting-row">
-          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Voice</strong><span>Voice output is not connected in this demo.</span></div></div>
-          <Badge variant="outline" className="coming-soon">Not connected</Badge>
+          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Voice playback</strong><span>Assistant messages can be spoken using your browser&apos;s built-in voice. It is not Meta text-to-speech.</span></div></div>
+          <Badge variant="outline" className="coming-soon">Browser voice</Badge>
         </div>
         <div className="setting-row">
           <div><strong>Quiet mode</strong><span>Keep Rocky&apos;s visual presence calm and still.</span></div>
@@ -155,14 +155,18 @@ export default function SettingsPage() {
       </Card>
 
       <Card role="region" aria-labelledby="devices-heading" className="settings-section gap-0 ring-0">
-        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2 id="devices-heading">Camera & microphone</h2><p>Your privacy comes first. Nothing is connected right now.</p></div></div>
+        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2 id="devices-heading">Camera & microphone</h2><p>Permissions are requested only after you start a feature.</p></div></div>
         <div className="setting-row">
-          <div className="setting-row-icon"><Mic size={17} /><div><strong>Microphone</strong><span>Audio capture and speech recognition are not available.</span></div></div>
-          <Badge variant="outline" className="permission-status">Not connected</Badge>
+          <div className="setting-row-icon"><Mic size={17} /><div><strong>Push-to-talk</strong><span>Recording starts only when you activate it. Audio is sent for transcription and is not stored.</span></div></div>
+          <Badge variant="outline" className="permission-status">Optional</Badge>
         </div>
+        <Link href="/#visual-awareness" className="setting-row setting-link">
+          <div className="setting-row-icon"><Eye size={17} /><div><strong>Visual awareness</strong><span>Still-image analysis is available on Home. The camera stays off until you start it.</span></div></div>
+          <ChevronRight size={17} />
+        </Link>
         <div className="setting-row">
-          <div className="setting-row-icon"><Eye size={17} /><div><strong>Camera awareness</strong><span>No camera feed or environment analysis is active.</span></div></div>
-          <PreferenceToggle checked={isEnabled} onChange={setAwarenessEnabled} label="Camera awareness demo state" />
+          <div><strong>Presence preview</strong><span>This demo switch changes the visual state only; it never activates your camera.</span></div>
+          <PreferenceToggle checked={isEnabled} onChange={setAwarenessEnabled} label="Presence preview demo state" />
         </div>
       </Card>
 
