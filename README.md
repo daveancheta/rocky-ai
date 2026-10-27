@@ -6,7 +6,7 @@ ROCKY is a Next.js companion UI prototype. Chat responses, awareness suggestions
 
 The project is linked to its Neon production branch through the local `.neon` context. Keep `.env.local` private; it contains the pooled `DATABASE_URL` used for runtime queries and the unpooled URL intended for migrations.
 
-The server-side Postgres connection is available through `lib/db.ts`. Check it end to end by starting the app and requesting `GET /api/health/database`. The endpoint returns only the service health status and never exposes connection details.
+The server-side Postgres connection uses Drizzle ORM with Neon's serverless HTTP driver in `lib/db.ts`. Check it end to end by starting the app and requesting `GET /api/health/database`. The endpoint returns only the service health status and never exposes connection details.
 
 No user-data tables are created yet. Add authentication and explicit data-retention/consent behavior before persisting personal memories or conversations.
 
