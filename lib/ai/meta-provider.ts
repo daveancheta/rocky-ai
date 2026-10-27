@@ -3,7 +3,6 @@ import "server-only"
 import {
   isMetaResponseWithinSizeLimit,
   MAX_META_RESPONSE_BYTES,
-  validateMetaApiError,
   validateMuseSparkInput,
   validateMuseSparkResponse,
   type MuseSparkInput,
@@ -56,7 +55,12 @@ async function readMetaResponseText(response: Response): Promise<string> {
     }
   } catch (error) {
     if (error instanceof MetaModelApiError) throw error
-    if (error instanceof DOMException && error.name === "AbortError") throw error
+    if (
+      error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError")
+    ) {
+      throw error
+    }
     throw new MetaModelApiError("Could not read the Meta Model API response.", response.status)
   } finally {
     reader.releaseLock()
@@ -105,7 +109,10 @@ export async function generateWithMuseSpark(
       signal: options.signal,
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (
+      error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError")
+    ) {
       throw error
     }
     throw new MetaModelApiError("Could not reach the Meta Model API.")
@@ -121,16 +128,24 @@ export async function generateWithMuseSpark(
   }
 
   if (!response.ok) {
-    const apiError = validateMetaApiError(body)
-    const message = apiError
-      ? apiError.message
-      : `Meta Model API request failed with status ${response.status}.`
-    throw new MetaModelApiError(message, response.status)
+    throw new MetaModelApiError(
+      `Meta Model API request failed with status ${response.status}.`,
+      response.status,
+    )
   }
 
   const parsedResponse = validateMuseSparkResponse(body)
   if (!parsedResponse.success) {
     throw new MetaModelApiError(parsedResponse.error, response.status)
+  }
+  if (
+    parsedResponse.data.model !== undefined &&
+    parsedResponse.data.model !== MUSE_SPARK_MODEL
+  ) {
+    throw new MetaModelApiError(
+      "Meta Model API returned a different model than requested.",
+      response.status,
+    )
   }
 
   const outputText = parsedResponse.data.output

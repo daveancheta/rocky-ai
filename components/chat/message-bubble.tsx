@@ -8,7 +8,6 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       )}
       <div className="message-content">
         <p className="message-bubble">{message.content}</p>
-        {message.isDemo && <span className="message-tag">SAMPLE</span>}
       </div>
     </div>
   )

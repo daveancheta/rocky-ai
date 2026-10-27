@@ -1,5 +1,13 @@
+export type MuseSparkTurn = {
+  role: "user" | "assistant"
+  content: Array<{
+    type: "input_text" | "output_text"
+    text: string
+  }>
+}
+
 export type MuseSparkInput = {
-  input: string
+  input: MuseSparkTurn[]
 }
 
 export type MuseSparkOutputText = {
@@ -18,7 +26,7 @@ type ValidationResult<T> =
   | { success: true; data: T }
   | { success: false; error: string }
 
-const MAX_INPUT_LENGTH = 20_000
+const MAX_INPUT_LENGTH = 32_000
 const MAX_INPUT_BYTES = 64 * 1024
 export const MAX_META_RESPONSE_BYTES = 2 * 1024 * 1024
 
@@ -29,18 +37,43 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function validateMuseSparkInput(
   value: unknown,
 ): ValidationResult<MuseSparkInput> {
-  if (!isRecord(value) || typeof value.input !== "string") {
-    return { success: false, error: "Input must be an object with a string input field." }
+  if (!isRecord(value) || !Array.isArray(value.input) || value.input.length === 0) {
+    return { success: false, error: "Input must contain at least one conversation turn." }
   }
 
-  const input = value.input.trim()
-  if (!input) {
-    return { success: false, error: "Input must not be empty." }
+  const input: MuseSparkTurn[] = []
+  let totalLength = 0
+  for (const turn of value.input) {
+    if (
+      !isRecord(turn) ||
+      (turn.role !== "user" && turn.role !== "assistant") ||
+      !Array.isArray(turn.content) ||
+      turn.content.length !== 1
+    ) {
+      return { success: false, error: "Input contains an invalid conversation turn." }
+    }
+
+    const [part] = turn.content
+    const contentType = turn.role === "user" ? "input_text" : "output_text"
+    if (
+      !isRecord(part) ||
+      part.type !== contentType ||
+      typeof part.text !== "string" ||
+      !part.text.trim()
+    ) {
+      return { success: false, error: "Input contains invalid conversation content." }
+    }
+    totalLength += part.text.length
+    if (totalLength > MAX_INPUT_LENGTH) {
+      return { success: false, error: `Input must not exceed ${MAX_INPUT_LENGTH} characters.` }
+    }
+    input.push({
+      role: turn.role,
+      content: [{ type: contentType, text: part.text }],
+    })
   }
-  if (input.length > MAX_INPUT_LENGTH) {
-    return { success: false, error: `Input must not exceed ${MAX_INPUT_LENGTH} characters.` }
-  }
-  if (new TextEncoder().encode(input).byteLength > MAX_INPUT_BYTES) {
+
+  if (new TextEncoder().encode(JSON.stringify(input)).byteLength > MAX_INPUT_BYTES) {
     return { success: false, error: `Input must not exceed ${MAX_INPUT_BYTES} bytes.` }
   }
 
@@ -95,15 +128,6 @@ export function validateMuseSparkResponse(
       output,
     },
   }
-}
-
-export function validateMetaApiError(
-  value: unknown,
-): { message: string } | undefined {
-  if (!isRecord(value) || !isRecord(value.error)) return undefined
-  return typeof value.error.message === "string"
-    ? { message: value.error.message }
-    : undefined
 }
 
 export function isMetaResponseWithinSizeLimit(

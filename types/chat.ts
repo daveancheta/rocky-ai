@@ -5,7 +5,6 @@ export type ChatMessage = {
   role: MessageRole
   content: string
   createdAt: string
-  isDemo?: boolean
 }
 
 export type SendMessageInput = {
@@ -13,7 +12,19 @@ export type SendMessageInput = {
   conversationId?: string
 }
 
+export type ConversationSummary = {
+  id: string
+  title: string
+  updatedAt: string
+}
+
+export type ConversationHistory = ConversationSummary & {
+  messages: ChatMessage[]
+}
+
 export type SendMessageResponse = {
-  conversationId?: string
+  conversationId: string
+  model: string
+  userMessage: ChatMessage
   message: ChatMessage
 }
