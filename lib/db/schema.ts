@@ -9,6 +9,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 
 export const chatRole = pgEnum("rocky_chat_role", ["user", "assistant"])
 
@@ -35,6 +36,9 @@ export const chatMessages = pgTable(
       .references(() => conversations.id, { onDelete: "cascade" }),
     role: chatRole("role").notNull(),
     content: text("content").notNull(),
+    kind: varchar("kind", { length: 20 }).$type<"conversation" | "proactive">().default("conversation").notNull(),
+    eventKey: varchar("event_key", { length: 64 }),
+    cooldownKey: varchar("cooldown_key", { length: 100 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -42,6 +46,12 @@ export const chatMessages = pgTable(
       table.conversationId,
       table.createdAt,
     ),
+    uniqueIndex("rocky_chat_messages_proactive_event_key_uq")
+      .on(table.eventKey)
+      .where(sql`${table.eventKey} IS NOT NULL`),
+    uniqueIndex("rocky_chat_messages_proactive_cooldown_key_uq")
+      .on(table.cooldownKey)
+      .where(sql`${table.cooldownKey} IS NOT NULL`),
   ],
 )
 

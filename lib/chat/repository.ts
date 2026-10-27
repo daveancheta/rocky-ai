@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/lib/db"
 import { chatMessages, conversations } from "@/lib/db/schema"
 import type { ChatMessage } from "@/types/chat"
@@ -97,6 +97,9 @@ export async function saveConversationTurn(input: {
       conversationId: input.conversationId,
       role: "user" as const,
       content: input.userMessage,
+      kind: "conversation" as const,
+      eventKey: null,
+      cooldownKey: null,
       createdAt: now,
     },
     {
@@ -104,6 +107,9 @@ export async function saveConversationTurn(input: {
       conversationId: input.conversationId,
       role: "assistant" as const,
       content: input.assistantMessage,
+      kind: "conversation" as const,
+      eventKey: null,
+      cooldownKey: null,
       createdAt: new Date(now.getTime() + 1),
     },
   ]
@@ -135,6 +141,101 @@ export async function saveConversationTurn(input: {
     userMessage: toChatMessage(user),
     assistantMessage: toChatMessage(assistant),
   }
+}
+
+export async function getRecentProactiveMessages(sessionId: string) {
+  return getDb()
+    .select({
+      content: chatMessages.content,
+      eventKey: chatMessages.eventKey,
+      createdAt: chatMessages.createdAt,
+    })
+    .from(chatMessages)
+    .innerJoin(conversations, eq(chatMessages.conversationId, conversations.id))
+    .where(
+      and(
+        eq(conversations.sessionId, sessionId),
+        eq(chatMessages.kind, "proactive"),
+      ),
+    )
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(100)
+}
+
+export async function saveProactiveMessage(input: {
+  sessionId: string
+  content: string
+  eventKey: string
+  cooldownKey: string
+}) {
+  const db = getDb()
+  const [latestConversation] = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(eq(conversations.sessionId, input.sessionId))
+    .orderBy(desc(conversations.updatedAt))
+    .limit(1)
+
+  const now = new Date()
+  const conversationId = latestConversation?.id ?? crypto.randomUUID()
+  if (!latestConversation) {
+    await db.insert(conversations).values({
+      id: conversationId,
+      sessionId: input.sessionId,
+      title: "ROCKY check-in",
+      createdAt: now,
+      updatedAt: now,
+    })
+  }
+
+  const [saved] = await db
+    .insert(chatMessages)
+    .values({
+      conversationId,
+      role: "assistant",
+      content: input.content,
+      kind: "proactive",
+      eventKey: input.eventKey,
+      cooldownKey: input.cooldownKey,
+      createdAt: now,
+    })
+    .onConflictDoNothing()
+    .returning({
+      id: chatMessages.id,
+      content: chatMessages.content,
+      createdAt: chatMessages.createdAt,
+    })
+
+  if (saved) {
+    await db
+      .update(conversations)
+      .set({ updatedAt: now })
+      .where(
+        and(
+          eq(conversations.id, conversationId),
+          eq(conversations.sessionId, input.sessionId),
+        ),
+      )
+  }
+
+  return saved
+}
+
+export async function deleteProactiveMessage(messageId: string, sessionId: string) {
+  const db = getDb()
+  const sessionConversations = db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(eq(conversations.sessionId, sessionId))
+  await db
+    .delete(chatMessages)
+    .where(
+      and(
+        eq(chatMessages.id, messageId),
+        eq(chatMessages.kind, "proactive"),
+        inArray(chatMessages.conversationId, sessionConversations),
+      ),
+    )
 }
 
 export async function conversationBelongsToSession(

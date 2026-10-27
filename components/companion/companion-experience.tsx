@@ -1,12 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useChatStore } from "@/stores/chat-store"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { useSettingsStore } from "@/stores/settings-store"
 import { useCompanionStore } from "@/stores/companion-store"
 import { RockyPresence } from "@/components/rocky/rocky-presence"
 import { VisionObserver } from "@/components/companion/vision-observer"
+import { useProactiveCompanion } from "@/components/companion/use-proactive-companion"
 
 function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop())
@@ -24,17 +24,26 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
   const setCameraActive = useCompanionStore((store) => store.setCameraActive)
   const setNotice = useCompanionStore((store) => store.setSessionNotice)
   const cameraMonitoring = useSettingsStore((store) => store.cameraMonitoring)
+  const { beginSession, observe, cancel: cancelProactive } = useProactiveCompanion()
 
   const end = useCallback(() => {
     sessionTokenRef.current += 1
-    useChatStore.getState().cancelCurrent()
+    cancelProactive()
     stopStream(streamRef.current)
     streamRef.current = null
     setStream(null)
     setCameraActive(false)
     endSession()
     useAwarenessStore.getState().clearLatestVisionObservation()
-  }, [endSession, setCameraActive])
+  }, [cancelProactive, endSession, setCameraActive])
+
+  const stopUnavailableCamera = useCallback(() => {
+    stopStream(streamRef.current)
+    streamRef.current = null
+    setStream(null)
+    setCameraActive(false)
+    setNotice("The camera stream could not start, so camera monitoring was stopped.")
+  }, [setCameraActive, setNotice])
 
   useEffect(() => {
     let active = true
@@ -54,7 +63,6 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
     const sessionToken = ++sessionTokenRef.current
     setIsStarting(true)
     useAwarenessStore.getState().clearLatestVisionObservation()
-    void useChatStore.getState().loadHistory()
     startSession()
 
     if (cameraMonitoring) {
@@ -75,23 +83,26 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
         if (sessionTokenRef.current !== sessionToken || !useCompanionStore.getState().isActive) return
         setNotice(
           error instanceof Error && error.name === "NotAllowedError"
-            ? "Camera permission was denied. Text and push-to-talk remain available."
-            : "Camera is unavailable. Text and push-to-talk remain available.",
+            ? "Camera permission was denied. Rocky can still run without camera awareness."
+            : "Camera is unavailable. Rocky can still run without camera awareness.",
         )
       }
     } else {
-      setNotice("Camera is off for this session. You can enable still-image checks in Settings.")
+      setNotice("Camera awareness is off for this session. You can enable it in Settings.")
     }
-    if (sessionTokenRef.current === sessionToken) setIsStarting(false)
+    if (sessionTokenRef.current === sessionToken && useCompanionStore.getState().isActive) {
+      beginSession()
+      setIsStarting(false)
+    }
   }
 
   useEffect(() => () => {
     sessionTokenRef.current += 1
-    useChatStore.getState().cancelCurrent()
+    cancelProactive()
     stopStream(streamRef.current)
     useCompanionStore.getState().end()
     useAwarenessStore.getState().clearLatestVisionObservation()
-  }, [])
+  }, [cancelProactive])
 
   return (
     <section className="companion-experience" aria-label="ROCKY companion">
@@ -102,7 +113,7 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
           <p>A little space for whatever&apos;s on your mind.</p>
         </div>
       </header>
-      {stream && isActive && <VisionObserver stream={stream} />}
+      {stream && isActive && <VisionObserver stream={stream} onObservation={observe} onUnavailable={stopUnavailableCamera} />}
       <div className="companion-layout">
         <div className="companion-stage">
           <RockyPresence onToggle={() => void toggle()} isStarting={isStarting} disabled={!settingsReady} />

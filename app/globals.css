@@ -141,6 +141,11 @@
 .presence-session-status { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 18px; min-height: 20px; margin: 0 0 14px; color: var(--taupe); font-size: 11px; }
 .presence-session-status > span { display: inline-flex; align-items: center; gap: 6px; }
 .presence-session-status .session-notice { color: var(--primary); }
+.proactive-message { display: flex; align-items: flex-start; gap: 9px; width: fit-content; max-width: min(100%, 560px); margin: 0 auto 15px; padding: 4px 6px; color: #66563c; }
+.proactive-message > svg { flex: 0 0 auto; margin-top: 2px; color: #a88750; }
+.proactive-message p { margin: 0; font-size: 12px; line-height: 1.55; }
+.proactive-message button { flex: 0 0 auto; width: 24px; height: 24px; margin: -4px -4px -4px 2px; color: inherit; }
+.dark .proactive-message { color: #e7dcc7; }
 .companion-session-button { min-width: 205px; min-height: 46px; margin: 0 auto; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 6px 16px rgb(156 62 15 / 18%); }
 .companion-session-button:hover { background: #963b09; }
 .presence-footnote { margin: 12px 0 0; text-align: center; }
@@ -378,6 +383,9 @@
 .setting-row span { color: var(--taupe); font-size: 10px; line-height: 1.5; }
 .setting-row-icon { display: flex; align-items: center; gap: 10px; color: #9b875e; }
 .setting-row-icon div { display: grid; gap: 4px; }
+.quiet-hours-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 10px 42px; }
+.quiet-hours-row label { display: flex; align-items: center; gap: 7px; color: var(--taupe); font-size: 10px; }
+.quiet-hours-row input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--foreground); background: var(--card); font: inherit; }
 .personality-row { align-items: flex-start; padding: 12px 0; }
 .personality-row > div:first-child { padding-top: 4px; }
 .personality-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }

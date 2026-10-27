@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { Check, ChevronRight, Eye, Moon, Sun, Monitor, ShieldCheck } from "lucide-react"
+import { Check, ChevronRight, Eye, Moon, Sun, Monitor, ShieldCheck, Sparkles, Volume2 } from "lucide-react"
 import { useSettingsStore, type Appearance } from "@/stores/settings-store"
 import { useMemoryStore } from "@/stores/memory-store"
 import { getMemoryPreference, updateMemoryPreference } from "@/lib/api/memories"
@@ -28,6 +28,16 @@ export default function SettingsPage() {
   const setMemoryEnabled = useSettingsStore((store) => store.setMemoryEnabled)
   const cameraMonitoring = useSettingsStore((store) => store.cameraMonitoring)
   const setCameraMonitoring = useSettingsStore((store) => store.setCameraMonitoring)
+  const proactiveEnabled = useSettingsStore((store) => store.proactiveEnabled)
+  const setProactiveEnabled = useSettingsStore((store) => store.setProactiveEnabled)
+  const speakProactive = useSettingsStore((store) => store.speakProactive)
+  const setSpeakProactive = useSettingsStore((store) => store.setSpeakProactive)
+  const quietHoursEnabled = useSettingsStore((store) => store.quietHoursEnabled)
+  const setQuietHoursEnabled = useSettingsStore((store) => store.setQuietHoursEnabled)
+  const quietHoursStart = useSettingsStore((store) => store.quietHoursStart)
+  const setQuietHoursStart = useSettingsStore((store) => store.setQuietHoursStart)
+  const quietHoursEnd = useSettingsStore((store) => store.quietHoursEnd)
+  const setQuietHoursEnd = useSettingsStore((store) => store.setQuietHoursEnd)
   const clearMemories = useMemoryStore((store) => store.clear)
   const [cleared, setCleared] = useState(false)
   const [memoryPreferenceLoading, setMemoryPreferenceLoading] = useState(true)
@@ -98,6 +108,26 @@ export default function SettingsPage() {
           ))}
         </div>
         <p className="settings-hint">Dark mode is available. System follows your device preference.</p>
+      </Card>
+
+      <Card role="region" aria-labelledby="companion-behavior-heading" className="settings-section gap-0 ring-0">
+        <div className="settings-section-heading"><span className="settings-section-icon"><Sparkles size={17} /></span><div><h2 id="companion-behavior-heading">Companion behavior</h2><p>Rocky checks in only when current context may be useful.</p></div></div>
+        <div className="setting-row">
+          <div><strong>Proactive check-ins</strong><span>Allow Rocky to show a relevant check-in during an active companion session.</span></div>
+          <PreferenceToggle checked={proactiveEnabled} onChange={setProactiveEnabled} label="Enable proactive check-ins" />
+        </div>
+        <div className="setting-row">
+          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Speak check-ins aloud</strong><span>Uses browser speech synthesis when available. Messages still appear if speech is unavailable or busy.</span></div></div>
+          <PreferenceToggle checked={speakProactive} onChange={setSpeakProactive} label="Speak proactive check-ins aloud" disabled={!proactiveEnabled} />
+        </div>
+        <div className="setting-row">
+          <div><strong>Quiet hours</strong><span>Rocky stays quiet during the selected local time range.</span></div>
+          <PreferenceToggle checked={quietHoursEnabled} onChange={setQuietHoursEnabled} label="Enable quiet hours" disabled={!proactiveEnabled} />
+        </div>
+        {quietHoursEnabled && <div className="quiet-hours-row">
+          <label>From <input type="time" value={quietHoursStart} onChange={(event) => setQuietHoursStart(event.target.value)} aria-label="Quiet hours start" /></label>
+          <label>Until <input type="time" value={quietHoursEnd} onChange={(event) => setQuietHoursEnd(event.target.value)} aria-label="Quiet hours end" /></label>
+        </div>}
       </Card>
 
       <Card role="region" aria-labelledby="devices-heading" className="settings-section gap-0 ring-0">

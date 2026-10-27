@@ -1,6 +1,6 @@
 "use client"
 
-import { Camera, CircleStop, Play } from "lucide-react"
+import { Camera, CircleStop, Play, Sparkles, X } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useCompanionStore } from "@/stores/companion-store"
@@ -18,6 +18,8 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
   const status = useCompanionStore((store) => store.status)
   const cameraActive = useCompanionStore((store) => store.cameraActive)
   const notice = useCompanionStore((store) => store.sessionNotice)
+  const proactiveMessage = useCompanionStore((store) => store.proactiveMessage)
+  const setProactiveMessage = useCompanionStore((store) => store.setProactiveMessage)
 
   return (
     <Card className={`presence-panel presence-${status} gap-0 ring-0`} aria-label="ROCKY companion presence">
@@ -38,6 +40,11 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
           <p className="presence-state">{isActive ? "I’m here with you." : "Start a companion session whenever you’re ready."}</p>
         </div>
       </div>
+      {isActive && proactiveMessage && <div className="proactive-message" role="status" aria-live="polite">
+        <Sparkles size={15} aria-hidden="true" />
+        <p>{proactiveMessage.text}</p>
+        <Button type="button" variant="ghost" size="icon-xs" onClick={() => setProactiveMessage(undefined)} aria-label="Dismiss Rocky’s check-in" title="Dismiss check-in"><X size={14} /></Button>
+      </div>}
       <div className="presence-session-status" aria-live="polite">
         {cameraActive && <span><Camera size={13} /> Camera on · periodic still images</span>}
         {notice && <span className="session-notice" role="status">{notice}</span>}
@@ -45,7 +52,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
       <Button type="button" className="companion-session-button" onClick={onToggle} disabled={disabled} aria-pressed={isActive}>
         {isStarting ? <><CircleStop size={17} /> Cancel start</> : isActive ? <><CircleStop size={17} /> End companion</> : <><Play size={17} /> Start companion</>}
       </Button>
-      <p className="presence-footnote">{isActive ? "Ending the session stops camera checks." : "Camera access follows your Settings consent and browser permission."}</p>
+      <p className="presence-footnote">{isActive ? "Ending the session stops camera checks and proactive check-ins." : "Camera access follows your Settings consent and browser permission."}</p>
     </Card>
   )
 }
