@@ -1056,3 +1056,73 @@
   .context-card { padding: 9px; }
   .context-detail { align-items: flex-start; }
 }
+
+/* Home companion polish: clearer hierarchy and calmer conversational spacing. */
+.companion-stage .presence-panel {
+  min-height: 390px;
+  padding: 25px clamp(22px, 5vw, 42px) 22px;
+  border-radius: 18px;
+}
+.presence-topline { min-height: 32px; }
+.presence-awareness-status {
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 10px;
+  letter-spacing: .01em;
+}
+.presence-live-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #90a28a;
+  box-shadow: 0 0 0 3px rgb(144 162 138 / 12%);
+}
+.presence-status-listening .presence-live-dot,
+.presence-status-speaking .presence-live-dot { background: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 13%, transparent); }
+.presence-status-thinking .presence-live-dot,
+.presence-status-observing .presence-live-dot { background: var(--champagne); box-shadow: 0 0 0 3px color-mix(in srgb, var(--champagne) 16%, transparent); }
+.companion-stage .presence-main { min-height: 235px; gap: clamp(32px, 6vw, 66px); }
+.companion-stage .presence-orb { width: 172px; height: 172px; }
+.companion-stage .orb-core { width: 98px; height: 98px; }
+.companion-stage .presence-copy { min-width: 210px; }
+.companion-stage .presence-copy h2 { max-width: 330px; font-size: clamp(30px, 3.5vw, 39px); line-height: 1.12; }
+.companion-stage .presence-state { margin-top: 12px; font-size: 12px; }
+.companion-reply {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 600px);
+  max-height: 145px;
+  margin: 0 auto 2px;
+  padding: 13px 16px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--background);
+  box-shadow: 0 5px 16px rgb(43 37 28 / 4%);
+  text-align: left;
+}
+.companion-reply > span { color: var(--taupe); font-size: 9px; font-weight: 600; letter-spacing: .12em; }
+.companion-latest-reply { max-height: none; color: var(--foreground); font-size: 14px; line-height: 1.65; text-align: left; }
+.companion-voice-controls { min-height: 50px; border-radius: 999px; box-shadow: 0 6px 18px rgb(43 37 28 / 6%); }
+.companion-voice-controls .companion-voice-button { width: 38px; height: 38px; }
+.companion-session-button { min-width: 224px; min-height: 49px; font-size: 13px; font-weight: 550; }
+.presence-footnote { margin-top: 13px; font-size: 10px; }
+
+@media (max-width: 600px) {
+  .companion-stage .presence-panel { min-height: 0; padding: 17px 16px 16px; border-radius: 15px; }
+  .presence-topline .eyebrow { gap: 7px; font-size: 8px; }
+  .presence-awareness-status { gap: 7px; min-height: 28px; padding: 0 9px; font-size: 9px; }
+  .companion-stage .presence-main { min-height: 0; flex-direction: column; gap: 13px; padding: 28px 0 21px; }
+  .companion-stage .presence-orb { width: 142px; height: 142px; }
+  .companion-stage .orb-core { width: 84px; height: 84px; }
+  .companion-stage .presence-copy { min-width: 0; text-align: center; }
+  .companion-stage .presence-copy h2 { margin: 0 auto; font-size: clamp(28px, 8vw, 34px); }
+  .companion-stage .presence-state { margin-top: 8px; }
+  .companion-reply { max-height: 130px; padding: 11px 13px; }
+  .companion-latest-reply { font-size: 13px; }
+  .companion-session-button { min-width: min(224px, 100%); }
+}

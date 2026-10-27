@@ -136,7 +136,7 @@ export function CompanionConversation() {
 
   return (
     <div className="companion-conversation" aria-label="Talk with Rocky">
-      {isActive && latestReply && <p className="companion-latest-reply" aria-live="polite">{latestReply.content}</p>}
+      {isActive && latestReply && <div className="companion-reply" aria-live="polite"><span>ROCKY</span><p className="companion-latest-reply">{latestReply.content}</p></div>}
       {isActive && voiceStatusCopy && <p className="companion-voice-status" role="status" aria-live="polite">{voiceStatusCopy}</p>}
       {isActive && (voiceError || chatError || historyError) && <div className="companion-conversation-error" role="alert">
         <span>{voiceError || chatError || "Conversation history is unavailable; you can still start a new conversation."}</span>

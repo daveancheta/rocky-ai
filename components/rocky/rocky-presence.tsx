@@ -52,7 +52,8 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
     <Card className={`presence-panel presence-${status} gap-0 ring-0`} aria-label="ROCKY companion presence">
       <div className="presence-topline">
         <span className="eyebrow"><span className="status-dot" /> ROCKY IS HERE</span>
-        <span className="presence-awareness-status" aria-live="polite">
+        <span className={`presence-awareness-status presence-status-${isActive ? status : "ready"}`} aria-live="polite">
+          <span className="presence-live-dot" aria-hidden="true" />
           {isActive ? statusCopy[status] : statusCopy.ready}
           {isActive && (status === "listening" || status === "speaking") && <span className={`presence-sound-wave wave-${status}`} aria-hidden="true"><i /><i /><i /><i /></span>}
         </span>
@@ -84,7 +85,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
       <Button type="button" className="companion-session-button" onClick={onToggle} disabled={disabled} aria-pressed={isActive}>
         {isStarting ? <><CircleStop size={17} /> Cancel start</> : isActive ? <><CircleStop size={17} /> End companion</> : <><Play size={17} /> Start companion</>}
       </Button>
-      <p className="presence-footnote">{isActive ? "Ending the session stops camera checks and proactive check-ins." : "Camera access follows your Settings consent and browser permission."}</p>
+      <p className="presence-footnote">{isActive ? "Microphone and camera access stop when you end the session." : "Your privacy settings always apply."}</p>
     </Card>
   )
 }
