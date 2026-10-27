@@ -236,7 +236,24 @@
 .message-row.assistant { align-self: flex-start; }
 .message-avatar { display: grid; flex: 0 0 auto; width: 23px; height: 23px; place-items: center; border: 1px solid #eee5d3; border-radius: 50%; color: #a58c60; background: #fcfaf5; font-family: var(--font-display); font-size: 11px; }
 .message-content { display: grid; gap: 3px; }
-.message-bubble { margin: 0; padding: 10px 11px; border-radius: 10px 10px 10px 3px; background: #f6f3ed; color: #49453e; font-size: 13px; line-height: 1.55; }
+.message-bubble { margin: 0; padding: 10px 11px; border-radius: 10px 10px 10px 3px; background: #f6f3ed; color: #49453e; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.message-bubble > :first-child { margin-top: 0; }
+.message-bubble > :last-child { margin-bottom: 0; }
+.message-bubble p { margin: 0 0 9px; }
+.message-bubble h1, .message-bubble h2, .message-bubble h3 { margin: 12px 0 6px; color: inherit; font-family: inherit; font-weight: 650; line-height: 1.35; }
+.message-bubble h1 { font-size: 16px; }
+.message-bubble h2 { font-size: 15px; }
+.message-bubble h3 { font-size: 14px; }
+.message-bubble ul, .message-bubble ol { margin: 5px 0 9px; padding-left: 21px; }
+.message-bubble li + li { margin-top: 3px; }
+.message-bubble blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid #cbbb9d; color: #71695b; }
+.message-bubble a { color: #806b45; text-decoration: underline; text-underline-offset: 2px; }
+.message-bubble code { padding: 1px 4px; border-radius: 4px; background: rgb(120 108 88 / 10%); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; }
+.message-bubble pre { max-width: 100%; margin: 8px 0; padding: 9px; overflow-x: auto; border: 1px solid rgb(120 108 88 / 12%); border-radius: 6px; background: rgb(120 108 88 / 6%); }
+.message-bubble pre code { padding: 0; background: transparent; }
+.message-bubble hr { margin: 9px 0; border: 0; border-top: 1px solid rgb(120 108 88 / 18%); }
+.dark .message-bubble a { color: #d3bd93; }
+.dark .message-bubble blockquote { color: #c0b8aa; }
 .dark .message-bubble { background: #37342f; color: var(--foreground); }
 .message-row.user .message-bubble { border-radius: 10px 10px 3px 10px; background: #eae4d7; color: #403a30; }
 .dark .message-row.user .message-bubble { background: #494235; color: var(--foreground); }
