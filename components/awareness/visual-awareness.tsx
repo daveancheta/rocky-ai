@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { analyzeVisionImage, type VisionAnalysisResult } from "@/lib/api/vision"
+import { useAwarenessStore } from "@/stores/awareness-store"
 
 const MAX_CAPTURE_EDGE = 1_600
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -36,6 +37,7 @@ export function VisualAwareness() {
   const [prompt, setPrompt] = useState("Describe the visible scene.")
   const [result, setResult] = useState<VisionAnalysisResult>()
   const [error, setError] = useState("")
+  const setLatestVisionObservation = useAwarenessStore((store) => store.setLatestVisionObservation)
 
   const stopCamera = useCallback(() => {
     stopTracks(streamRef.current)
@@ -177,7 +179,10 @@ export function VisualAwareness() {
     setResult(undefined)
     try {
       const analysis = await analyzeVisionImage(image, task, prompt.trim(), controller.signal)
-      if (requestRef.current === controller) setResult(analysis)
+      if (requestRef.current === controller) {
+        setResult(analysis)
+        if (analysis.kind === "understanding") setLatestVisionObservation(analysis.text)
+      }
     } catch (caught) {
       if (controller.signal.aborted) return
       setError(

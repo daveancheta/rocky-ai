@@ -10,6 +10,8 @@ import type {
   ChatMessage,
   ConversationSummary,
 } from "@/types/chat"
+import { useSettingsStore } from "@/stores/settings-store"
+import { useAwarenessStore } from "@/stores/awareness-store"
 
 type ChatStore = {
   messages: ChatMessage[]
@@ -49,10 +51,14 @@ async function submitMessage(content: string, appendUser: boolean) {
   }))
 
   try {
+    const observation = useAwarenessStore.getState().latestVisionObservation
     const response = await sendChatMessage({
       message: trimmed,
       conversationId: state.conversationId,
+      personality: useSettingsStore.getState().personality,
+      observation,
     })
+    if (observation) useAwarenessStore.getState().clearLatestVisionObservation(observation.observedAt)
     const updatedAt = response.message.createdAt
     const summary: ConversationSummary = {
       id: response.conversationId,

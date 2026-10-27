@@ -131,6 +131,18 @@
 .home-header { align-items: center; margin-bottom: 27px; }
 .home-header h1 { font-size: clamp(32px, 4vw, 42px); }
 .home-grid { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(310px, .84fr); align-items: start; gap: 20px; }
+.companion-layout { display: grid; grid-template-columns: minmax(0, .92fr) minmax(360px, 1.08fr); align-items: start; gap: 20px; }
+.companion-stage { display: grid; gap: 14px; min-width: 0; }
+.awareness-inline { padding: 13px; border: 1px solid var(--border); border-radius: 13px; background: color-mix(in srgb, var(--card) 82%, transparent); }
+.awareness-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 2px 10px; color: var(--taupe); font-size: 10px; }
+.awareness-inline-heading > span:first-child { display: inline-flex; align-items: center; gap: 7px; color: var(--foreground); font-size: 9px; font-weight: 650; letter-spacing: .8px; }
+.awareness-inline .visual-awareness-card { padding: 0; border: 0; background: transparent; }
+.awareness-inline .visual-awareness-header { padding: 0; }
+.awareness-inline .visual-awareness-content { padding: 8px 0 0 42px; }
+.awareness-inline .visual-awareness-content > p { margin-bottom: 9px; font-size: 11px; }
+.awareness-inline .visual-awareness-icon { width: 32px; height: 32px; }
+.presence-awareness-status { color: var(--taupe); font-size: 10px; }
+@media (max-width: 900px) { .companion-layout { grid-template-columns: minmax(0, 1fr); } }
 .home-primary, .home-aside { display: grid; gap: 19px; min-width: 0; }
 .presence-panel { position: relative; overflow: hidden; min-height: 318px; padding: 19px 22px 14px; border: 1px solid #e8e1d4; border-radius: 13px; background: linear-gradient(140deg, #fff 20%, #faf8f3 100%); }
 .dark .presence-panel { border-color: var(--border); background: linear-gradient(140deg, #292724, #302d28); }

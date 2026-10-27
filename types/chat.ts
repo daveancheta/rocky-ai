@@ -10,6 +10,8 @@ export type ChatMessage = {
 export type SendMessageInput = {
   message: string
   conversationId?: string
+  personality?: "Calm" | "Friendly" | "Playful" | "Supportive"
+  observation?: { text: string; observedAt: string }
 }
 
 export type ConversationSummary = {

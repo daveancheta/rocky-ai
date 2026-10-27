@@ -4,7 +4,6 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { AudioLines, Check, ChevronRight, Eye, Mic, Moon, Sun, Monitor, ShieldCheck, Volume2 } from "lucide-react"
 import { useSettingsStore, type Appearance, type Personality } from "@/stores/settings-store"
-import { useAwarenessStore } from "@/stores/awareness-store"
 import { useMemoryStore } from "@/stores/memory-store"
 import { getMemoryPreference, updateMemoryPreference } from "@/lib/api/memories"
 import { Badge } from "@/components/ui/badge"
@@ -43,8 +42,6 @@ export default function SettingsPage() {
   const setInterruptions = useSettingsStore((store) => store.setInterruptions)
   const memoryEnabled = useSettingsStore((store) => store.memoryEnabled)
   const setMemoryEnabled = useSettingsStore((store) => store.setMemoryEnabled)
-  const isEnabled = useAwarenessStore((store) => store.isEnabled)
-  const setAwarenessEnabled = useAwarenessStore((store) => store.setEnabled)
   const clearMemories = useMemoryStore((store) => store.clear)
   const [cleared, setCleared] = useState(false)
   const [memoryPreferenceLoading, setMemoryPreferenceLoading] = useState(true)
@@ -164,10 +161,6 @@ export default function SettingsPage() {
           <div className="setting-row-icon"><Eye size={17} /><div><strong>Visual awareness</strong><span>Still-image analysis is available on Home. The camera stays off until you start it.</span></div></div>
           <ChevronRight size={17} />
         </Link>
-        <div className="setting-row">
-          <div><strong>Presence preview</strong><span>This demo switch changes the visual state only; it never activates your camera.</span></div>
-          <PreferenceToggle checked={isEnabled} onChange={setAwarenessEnabled} label="Presence preview demo state" />
-        </div>
       </Card>
 
       <Card role="region" aria-labelledby="privacy-heading" className="settings-section gap-0 ring-0">
