@@ -8,7 +8,7 @@ import {
   Pencil,
   X,
   Check,
-  Sparkles,
+  BrainCircuit,
   ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -189,7 +189,14 @@ export default function MemoriesPage() {
             Review and manage the details you choose to let Rocky remember.
           </p>
         </div>
-        <Button size="lg" onClick={() => setShowNew((value) => !value)}>
+        <Button
+          size="lg"
+          variant={showNew ? "outline" : "default"}
+          aria-expanded={showNew}
+          aria-controls={showNew ? "add-memory-form" : undefined}
+          className="w-full sm:w-auto"
+          onClick={() => setShowNew((value) => !value)}
+        >
           {showNew ? <X size={16} /> : <Plus size={16} />}
           {showNew ? "Cancel" : "Add a memory"}
         </Button>
@@ -223,18 +230,27 @@ export default function MemoriesPage() {
             <CardDescription>Saving means you approve Rocky storing and using this detail.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="grid gap-4" onSubmit={(event) => void handleCreate(event)}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input name="title" placeholder="A short title" aria-label="Memory title" required maxLength={80} />
-                <Select name="category" defaultValue="Preferences">
-                  <SelectTrigger aria-label="Memory category" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MEMORY_CATEGORIES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Input className="sm:col-span-2" name="detail" placeholder="What would you like to remember?" aria-label="Memory detail" required maxLength={500} />
+            <form id="add-memory-form" className="grid gap-5" onSubmit={(event) => void handleCreate(event)}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium">
+                  Memory title
+                  <Input className="h-10 font-normal" name="title" placeholder="A short, clear title" required maxLength={80} />
+                </label>
+                <label className="grid gap-2 text-sm font-medium">
+                  Category
+                  <Select name="category" defaultValue="Preferences">
+                    <SelectTrigger aria-label="Memory category" className="h-10 w-full font-normal">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MEMORY_CATEGORIES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="grid gap-2 text-sm font-medium sm:col-span-2">
+                  What should Rocky remember?
+                  <Textarea className="min-h-24 resize-y font-normal" name="detail" placeholder="Add a useful detail you want Rocky to keep in mind…" required maxLength={500} />
+                </label>
               </div>
               <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -254,7 +270,7 @@ export default function MemoriesPage() {
           <CardDescription>
             Ask Muse Spark to suggest stable, non-sensitive details from one conversation. Nothing is saved unless you approve it.
           </CardDescription>
-          <CardAction><Badge variant="outline"><Sparkles /> Muse Spark</Badge></CardAction>
+          <CardAction><Badge variant="outline"><BrainCircuit /> Muse Spark</Badge></CardAction>
         </CardHeader>
         <CardContent className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -285,7 +301,7 @@ export default function MemoriesPage() {
             onClick={() => void requestSuggestions()}
             disabled={!sourceConversationId || !isPreferenceLoaded || !memoryEnabled || isSuggesting}
           >
-            <Sparkles size={14} /> {isSuggesting ? "Reviewing…" : "Suggest memories"}
+            <BrainCircuit size={14} /> {isSuggesting ? "Reviewing…" : "Suggest memories"}
           </Button>
         </div>
         {!memoryEnabled && <p className="text-sm text-muted-foreground">Memory use is off in Settings. Turn it on before asking for suggestions.</p>}
@@ -300,7 +316,7 @@ export default function MemoriesPage() {
                   <CardTitle className="pt-2">{candidate.title}</CardTitle>
                   <CardDescription>{candidate.detail}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex gap-2">
+                <CardContent className="flex flex-wrap gap-2">
                   <Button type="button" size="sm" onClick={() => void approveCandidate(candidate)}>Approve & save</Button>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setCandidates((items) => items.filter((item) => item !== candidate))}>Dismiss</Button>
                 </CardContent>
@@ -311,20 +327,30 @@ export default function MemoriesPage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search memories…" aria-label="Search memories" />
+      <section className="space-y-4" aria-labelledby="saved-memories-title">
+        <div className="flex flex-col gap-4 border-b border-border/70 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            <h2 id="saved-memories-title" className="text-xl font-medium tracking-tight">Your saved memories</h2>
+            <p className="text-sm text-muted-foreground">A small collection of details you’ve chosen to keep.</p>
+          </div>
+          <Badge variant="secondary" className="w-fit">
+            {visibleMemories.length} {visibleMemories.length === 1 ? "memory" : "memories"}
+          </Badge>
         </div>
-        <Badge variant="secondary">{visibleMemories.length} {visibleMemories.length === 1 ? "memory" : "memories"}</Badge>
-      </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter memories by category">
-        {categories.map((item) => (
-          <Button type="button" variant={category === item ? "secondary" : "outline"} size="sm" key={item} onClick={() => setCategory(item)} aria-pressed={category === item}>
-            {item}
-          </Button>
-        ))}
-      </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by title or detail…" aria-label="Search memories" />
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter memories by category">
+            {categories.map((item) => (
+              <Button type="button" variant={category === item ? "secondary" : "outline"} size="sm" key={item} onClick={() => setCategory(item)} aria-pressed={category === item}>
+                {item}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </section>
       {error && <Card role="alert" className="border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive shadow-none">{error}</Card>}
       {isLoading ? (
         <Card className="flex min-h-36 items-center justify-center gap-3 text-sm text-muted-foreground">
@@ -333,7 +359,7 @@ export default function MemoriesPage() {
       ) : visibleMemories.length ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {visibleMemories.map((memory) => (
-            <Card key={memory.id}>
+            <Card key={memory.id} className="transition-shadow hover:shadow-md">
               <CardHeader className="grid-cols-[1fr_auto]">
                 <Badge variant="secondary" className="w-fit">{memory.category}</Badge>
                 <CardAction className="flex gap-1">
@@ -371,11 +397,12 @@ export default function MemoriesPage() {
         <Card className="items-center border-dashed py-12 text-center shadow-none">
           <CardContent className="flex flex-col items-center gap-3">
             <div className="rounded-full bg-muted p-3 text-muted-foreground"><Search size={20} /></div>
-            <CardTitle>{memories.length ? "No memories found" : "No saved memories yet"}</CardTitle>
+            <CardTitle>{memories.length ? "No memories found" : "A little context goes a long way"}</CardTitle>
             <CardDescription>
-              {memories.length ? "Try another search or choose a different category." : "Add one yourself or review a suggestion from a conversation."}
+              {memories.length ? "Try another search or choose a different category." : "Save a preference, goal, or ongoing detail. Nothing is stored without your approval."}
             </CardDescription>
             {memories.length > 0 && <Button variant="outline" size="sm" onClick={() => { setQuery(""); setCategory("All") }}>Clear filters</Button>}
+            {!memories.length && !showNew && <Button size="sm" onClick={() => setShowNew(true)}><Plus size={14} /> Add your first memory</Button>}
           </CardContent>
         </Card>
       )}
