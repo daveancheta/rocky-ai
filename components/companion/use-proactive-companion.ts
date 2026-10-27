@@ -5,7 +5,7 @@ import { evaluateProactiveEvent, type ProactiveEvaluationInput } from "@/lib/api
 import { useCompanionStore } from "@/stores/companion-store"
 import { useSettingsStore } from "@/stores/settings-store"
 
-type ObservationEvent = { trigger: "observation"; observation: { text: string; observedAt: string } }
+type ObservationEvent = { trigger: "observation"; observation: { text: string; observedAt: string; confidence: number } }
 type SessionStartEvent = { trigger: "session_start" }
 type ProactiveEvent = ObservationEvent | SessionStartEvent
 
@@ -151,7 +151,7 @@ export function useProactiveCompanion() {
     void evaluate({ trigger: "session_start" })
   }, [evaluate, start])
 
-  const observe = useCallback((observation: { text: string; observedAt: string }) => {
+  const observe = useCallback((observation: { text: string; observedAt: string; confidence: number }) => {
     void evaluate({ trigger: "observation", observation })
   }, [evaluate])
 

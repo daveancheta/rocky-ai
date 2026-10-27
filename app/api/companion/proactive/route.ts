@@ -25,7 +25,7 @@ function isClockTime(value: unknown): value is string {
 function parseRequest(value: unknown): {
   sessionNonce: string
   trigger: ProactiveTrigger
-  observation?: { text: string; observedAt: string }
+  observation?: { text: string; observedAt: string; confidence: number }
   timezoneOffsetMinutes: number
   preferences: ProactivePreferences
 } | undefined {
@@ -44,13 +44,19 @@ function parseRequest(value: unknown): {
     !isClockTime(preferences.quietHoursEnd)
   ) return undefined
 
-  let observation: { text: string; observedAt: string } | undefined
+  let observation: { text: string; observedAt: string; confidence: number } | undefined
   if (value.trigger === "observation") {
     if (!isRecord(value.observation) || typeof value.observation.text !== "string" ||
       value.observation.text.trim().length < 1 || value.observation.text.length > 8_000 ||
       typeof value.observation.observedAt !== "string" ||
-      !Number.isFinite(Date.parse(value.observation.observedAt))) return undefined
-    observation = { text: value.observation.text.trim(), observedAt: value.observation.observedAt }
+      !Number.isFinite(Date.parse(value.observation.observedAt)) ||
+      typeof value.observation.confidence !== "number" || !Number.isFinite(value.observation.confidence) ||
+      value.observation.confidence < 0 || value.observation.confidence > 1) return undefined
+    observation = {
+      text: value.observation.text.trim(),
+      observedAt: value.observation.observedAt,
+      confidence: value.observation.confidence,
+    }
   }
 
   return {

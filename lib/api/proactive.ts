@@ -3,7 +3,7 @@ import { apiRequest } from "@/lib/api/client"
 export type ProactiveEvaluationInput = {
   sessionNonce: string
   trigger: "session_start" | "observation"
-  observation?: { text: string; observedAt: string }
+  observation?: { text: string; observedAt: string; confidence: number }
   timezoneOffsetMinutes: number
   preferences: {
     enabled: boolean

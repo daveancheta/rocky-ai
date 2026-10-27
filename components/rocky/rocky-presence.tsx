@@ -4,6 +4,7 @@ import { Camera, CircleStop, Play, Sparkles, X } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useCompanionStore } from "@/stores/companion-store"
+import { useAwarenessStore } from "@/stores/awareness-store"
 
 const statusCopy = {
   ready: "Ready when you are",
@@ -20,6 +21,23 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
   const notice = useCompanionStore((store) => store.sessionNotice)
   const proactiveMessage = useCompanionStore((store) => store.proactiveMessage)
   const setProactiveMessage = useCompanionStore((store) => store.setProactiveMessage)
+  const visionStatus = useAwarenessStore((store) => store.visionStatus)
+  const visionObservedAt = useAwarenessStore((store) => store.latestVisionObservation?.observedAt)
+  const visionLastAttemptAt = useAwarenessStore((store) => store.visionLastAttemptAt)
+
+  const visionStatusText = visionStatus === "capturing"
+    ? "Capturing a still image"
+    : visionStatus === "processing"
+      ? "Checking the latest still image"
+      : visionStatus === "uncertain"
+        ? "Latest observation is uncertain"
+        : visionStatus === "error"
+          ? "Latest still-image check failed"
+          : visionObservedAt
+            ? `Last still image checked ${new Date(visionObservedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+            : visionLastAttemptAt
+              ? `Last check attempted ${new Date(visionLastAttemptAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              : undefined
 
   return (
     <Card className={`presence-panel presence-${status} gap-0 ring-0`} aria-label="ROCKY companion presence">
@@ -47,6 +65,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
       </div>}
       <div className="presence-session-status" aria-live="polite">
         {cameraActive && <span><Camera size={13} /> Camera on · periodic still images</span>}
+        {cameraActive && visionStatusText && <span aria-live="polite">{visionStatusText}</span>}
         {notice && <span className="session-notice" role="status">{notice}</span>}
       </div>
       <Button type="button" className="companion-session-button" onClick={onToggle} disabled={disabled} aria-pressed={isActive}>

@@ -9,6 +9,7 @@ import {
   isQuietTime,
   parseProactiveDecision,
 } from "@/lib/companion/proactive-policy"
+import { MIN_VISION_CONFIDENCE } from "@/lib/companion/vision-change"
 import {
   deleteProactiveMessage,
   getConversationHistory,
@@ -64,7 +65,7 @@ export async function evaluateProactiveMessage(input: {
   sessionId: string
   sessionNonce: string
   trigger: ProactiveTrigger
-  observation?: { text: string; observedAt: string }
+  observation?: { text: string; observedAt: string; confidence: number }
   timezoneOffsetMinutes: number
   preferences: ProactivePreferences
   signal?: AbortSignal
@@ -80,6 +81,7 @@ export async function evaluateProactiveMessage(input: {
   const now = new Date()
   if (input.trigger === "observation") {
     if (!input.observation) return { decision: "quiet" as const }
+    if (input.observation.confidence < MIN_VISION_CONFIDENCE) return { decision: "quiet" as const }
     const age = now.getTime() - Date.parse(input.observation.observedAt)
     if (!Number.isFinite(age) || age < 0 || age > 3 * 60_000) return { decision: "quiet" as const }
   }
@@ -138,7 +140,7 @@ export async function evaluateProactiveMessage(input: {
   }
 
   const signalContext = input.trigger === "observation"
-    ? `A completed, authorized periodic still-image observation: ${input.observation?.text ?? ""}`
+    ? `A completed, authorized periodic still-image comparison. The vision model reported confidence ${input.observation?.confidence.toFixed(2)} (model estimate, not calibrated): ${input.observation?.text ?? ""}`
     : "The user has just explicitly started a companion session. Consider only a genuinely useful follow-up supported by the supplied approved memories or conversation."
   const historyContext = recentHistory.slice(-10)
     .map((message) => `${message.role}: ${message.content.slice(0, 1_200)}`)
@@ -147,6 +149,7 @@ export async function evaluateProactiveMessage(input: {
     "Decide whether ROCKY should initiate one short, relevant message now or remain quiet.",
     "Use only the supplied observation, recent conversation, and approved memories. Never invent an event, task status, memory, completed action, or environmental detail.",
     "A still-image observation is not real-time video. Do not infer emotion, identity, health, activity, or intent. If uncertain, repetitive, irrelevant, intrusive, or not useful, choose quiet.",
+    "When a visual change is described as possible or model-estimated, preserve that uncertainty in any message. Never turn a model confidence estimate into a confirmed fact.",
     "For a follow-up about a goal or ongoing task, ask gently; do not assume progress or completion. Never announce ordinary scene details without a clear reason.",
     "Return only JSON with shape {\"decision\":\"speak\"|\"quiet\",\"confidence\":0.0,\"message\":\"...\"}. Set confidence from 0 to 1. A speak message must be one natural sentence and no more than 240 characters. Use an empty message for quiet.",
     `Trigger: ${input.trigger}.`,

@@ -1,6 +1,9 @@
 import { create } from "zustand"
 import { getAwareness } from "@/lib/api/awareness"
 import type { AwarenessObservation } from "@/types/awareness"
+import type { VisionSnapshot } from "@/lib/companion/vision-change"
+
+export type VisionProcessingStatus = "idle" | "capturing" | "processing" | "ready" | "uncertain" | "error"
 
 type CameraPermission = "unknown" | "granted" | "denied" | "unsupported"
 type ConnectionStatus = "disconnected" | "connecting" | "connected"
@@ -12,10 +15,14 @@ type AwarenessStore = {
   cameraPermission: CameraPermission
   connectionStatus: ConnectionStatus
   observations: AwarenessObservation[]
-  latestVisionObservation?: { text: string; observedAt: string; image?: Blob }
+  latestVisionObservation?: { text: string; observedAt: string; image?: Blob; snapshot?: VisionSnapshot }
+  visionStatus: VisionProcessingStatus
+  visionLastAttemptAt?: string
+  visionError?: string
   fetchObservations: (signal?: AbortSignal) => Promise<void>
   setEnabled: (enabled: boolean) => void
-  setLatestVisionObservation: (text: string, image?: Blob) => void
+  setLatestVisionObservation: (text: string, image?: Blob, observedAt?: string, snapshot?: VisionSnapshot) => void
+  setVisionStatus: (status: VisionProcessingStatus, attemptedAt?: string, error?: string) => void
   clearLatestVisionObservation: (observedAt?: string) => void
   dismiss: (id: string) => void
 }
@@ -37,6 +44,7 @@ export const useAwarenessStore = create<AwarenessStore>((set) => ({
   connectionStatus: "disconnected",
   observations: sampleObservations,
   latestVisionObservation: undefined,
+  visionStatus: "idle",
   fetchObservations: async (signal) => {
     set({ isLoading: true, error: undefined })
     try {
@@ -51,14 +59,17 @@ export const useAwarenessStore = create<AwarenessStore>((set) => ({
     }
   },
   setEnabled: (isEnabled) => set({ isEnabled }),
-  setLatestVisionObservation: (text, image) => set({
-    latestVisionObservation: { text, observedAt: new Date().toISOString(), image },
+  setLatestVisionObservation: (text, image, observedAt = new Date().toISOString(), snapshot) => set({
+    latestVisionObservation: { text, observedAt, image, snapshot },
+    visionStatus: "ready",
+    visionError: undefined,
   }),
-  clearLatestVisionObservation: (observedAt) => set((state) => ({
-    latestVisionObservation: !observedAt || state.latestVisionObservation?.observedAt === observedAt
-      ? undefined
-      : state.latestVisionObservation,
-  })),
+  setVisionStatus: (visionStatus, visionLastAttemptAt, visionError) => set({ visionStatus, visionLastAttemptAt, visionError }),
+  clearLatestVisionObservation: (observedAt) => set((state) =>
+    !observedAt || state.latestVisionObservation?.observedAt === observedAt
+      ? { latestVisionObservation: undefined, visionStatus: "idle", visionLastAttemptAt: undefined, visionError: undefined }
+      : {},
+  ),
   dismiss: (id) =>
     set((state) => ({
       observations: state.observations.filter((item) => item.id !== id),
