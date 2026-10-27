@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useRef, type FormEvent } from "react"
-import { ArrowUp, MessageCircle, Mic, Plus, RotateCcw } from "lucide-react"
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
+import { ArrowUp, Check, LoaderCircle, MessageCircle, Mic, Plus, RotateCcw, Square, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { useChatStore } from "@/stores/chat-store"
 import { MessageBubble } from "@/components/chat/message-bubble"
+import { useVoiceInput } from "@/components/chat/use-voice-input"
 
 export function ConversationPanel() {
   const messages = useChatStore((store) => store.messages)
@@ -29,6 +30,13 @@ export function ConversationPanel() {
   const startNewConversation = useChatStore((store) => store.startNewConversation)
   const sendMessage = useChatStore((store) => store.sendMessage)
   const retry = useChatStore((store) => store.retry)
+  const [draft, setDraft] = useState("")
+  const appendTranscript = useCallback((transcript: string) => {
+    setDraft((current) =>
+      current.trim() ? `${current.trim()} ${transcript}` : transcript,
+    )
+  }, [])
+  const voice = useVoiceInput(appendTranscript)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,13 +49,14 @@ export function ConversationPanel() {
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (isSending || isLoadingHistory) return
-    const form = event.currentTarget
-    const input = new FormData(form).get("message")
-    if (typeof input !== "string" || !input.trim()) return
-    void sendMessage(input)
-    form.reset()
+    if (isSending || isLoadingHistory || voice.status !== "idle" || !draft.trim()) return
+    void sendMessage(draft)
+    setDraft("")
+    voice.clearTranscript()
   }
+
+  const isVoiceBusy = voice.status !== "idle"
+  const recordingTime = `${String(Math.floor(voice.recordingSeconds / 60)).padStart(2, "0")}:${String(voice.recordingSeconds % 60).padStart(2, "0")}`
 
   return (
     <Card role="region" aria-label="Conversation with Rocky" className="conversation-card gap-0 py-0 ring-0">
@@ -64,7 +73,7 @@ export function ConversationPanel() {
               if (selectedId && selectedId !== "new") void selectConversation(selectedId)
               else startNewConversation()
             }}
-            disabled={isLoadingHistory || isSending || conversations.length === 0}
+            disabled={isLoadingHistory || isSending || isVoiceBusy || conversations.length === 0}
           >
             <SelectTrigger id="conversation-select" aria-label="Choose a conversation" className="conversation-select">
               <SelectValue>
@@ -88,7 +97,7 @@ export function ConversationPanel() {
             className="new-chat-button"
             type="button"
             onClick={startNewConversation}
-            disabled={isLoadingHistory || isSending}
+            disabled={isLoadingHistory || isSending || isVoiceBusy}
             aria-label="Start a new conversation"
             title="Start a new conversation"
           >
@@ -141,20 +150,90 @@ export function ConversationPanel() {
           {lastMessage && <Button variant="ghost" size="sm" onClick={() => void retry()} className="retry-button"><RotateCcw size={13} /> Try again</Button>}
         </div>
       )}
+      {voice.status === "recording" && (
+        <div className="voice-status" role="status" aria-live="polite">
+          <span className="voice-recording-indicator" />
+          Recording {recordingTime} · Up to 2 minutes
+        </div>
+      )}
+      {voice.status === "requesting" && (
+        <div className="voice-status" role="status" aria-live="polite">
+          <LoaderCircle size={14} className="animate-spin" /> Requesting microphone access…
+        </div>
+      )}
+      {voice.status === "processing" && (
+        <div className="voice-status" role="status" aria-live="polite">
+          <LoaderCircle size={14} className="animate-spin" /> Transcribing your recording…
+        </div>
+      )}
+      {voice.transcript && voice.status === "idle" && (
+        <div className="voice-status" role="status" aria-live="polite">
+          <Check size={14} /> Review or edit the transcript before sending.
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="voice-dismiss"
+            onClick={() => {
+              voice.clearTranscript()
+              setDraft("")
+            }}
+            aria-label="Discard transcript"
+            title="Discard transcript"
+          >
+            <X size={14} />
+          </Button>
+        </div>
+      )}
+      {voice.error && (
+        <div className="voice-error" role="alert">
+          <span>{voice.error}</span>
+          <Button type="button" variant="ghost" size="icon-xs" onClick={voice.cancel} aria-label="Dismiss voice error">
+            <X size={14} />
+          </Button>
+        </div>
+      )}
       <form className="composer" onSubmit={onSubmit}>
         <Input
           className="h-auto border-0 bg-transparent px-0 py-0 text-[13px] shadow-none focus-visible:border-0 focus-visible:ring-0"
           aria-label="Message Rocky"
           name="message"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
           placeholder="Write what’s on your mind…"
           maxLength={2000}
           autoComplete="off"
-          disabled={isSending || isLoadingHistory}
+          disabled={isSending || isLoadingHistory || isVoiceBusy}
         />
-        <Button variant="ghost" size="icon" className="composer-mic" type="button" aria-label="Voice input not available" title="Voice input is not connected">
-          <Mic size={17} />
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`composer-mic ${voice.status === "recording" ? "is-listening" : ""}`}
+          type="button"
+          onClick={() => {
+            if (voice.status === "recording") void voice.stopRecording()
+            else if (voice.status === "idle") void voice.startRecording()
+          }}
+          disabled={isSending || isLoadingHistory || voice.status === "requesting" || voice.status === "processing"}
+          aria-label={voice.status === "recording" ? "Stop recording and transcribe" : voice.status === "processing" ? "Transcribing recording" : "Start voice recording"}
+          title={voice.status === "recording" ? "Stop recording and transcribe" : "Start voice recording"}
+        >
+          {voice.status === "recording" ? <Square size={15} /> : voice.status === "requesting" || voice.status === "processing" ? <LoaderCircle size={16} className="animate-spin" /> : <Mic size={17} />}
         </Button>
-        <Button className="send-button" type="submit" disabled={isSending || isLoadingHistory} aria-label="Send message">
+        {isVoiceBusy && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="composer-mic"
+            type="button"
+            onClick={voice.cancel}
+            aria-label="Cancel voice input"
+            title="Cancel voice input"
+          >
+            <X size={16} />
+          </Button>
+        )}
+        <Button className="send-button" type="submit" disabled={isSending || isLoadingHistory || isVoiceBusy || !draft.trim()} aria-label="Send message">
           <ArrowUp size={18} />
         </Button>
       </form>

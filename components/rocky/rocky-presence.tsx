@@ -143,7 +143,7 @@ export function RockyPresence() {
       <div className="presence-controls">
         {controls}
       </div>
-      <p className="presence-footnote">Microphone and camera are not connected in this demo.</p>
+      <p className="presence-footnote">This presence preview does not use your microphone or camera.</p>
       {isFullscreen && createPortal(
         <div className={`rocky-fullscreen presence-${state}`} role="dialog" aria-modal="true" aria-label="ROCKY fullscreen companion">
           <header className="fullscreen-header">
@@ -176,10 +176,10 @@ export function RockyPresence() {
               <h1>I’m here with you.</h1>
               <p className="fullscreen-state">{stateLabels[state]}</p>
               <div className="presence-controls fullscreen-controls">{controls}</div>
-              <p className="presence-footnote">Microphone and camera are not connected in this demo.</p>
+              <p className="presence-footnote">This presence preview does not use your microphone or camera.</p>
             </section>
           </main>
-          <p className="fullscreen-demo-note">ROCKY UI DEMO · Sample replies only</p>
+          <p className="fullscreen-demo-note">ROCKY PRESENCE DEMO · Visual preview only</p>
         </div>,
         document.body,
       )}

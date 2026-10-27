@@ -14,6 +14,14 @@ Memories are never extracted or saved automatically. Users can add memories dire
 
 Set `MODEL_API_KEY` in the server environment to enable Muse Spark 1.3. It is never read by client-side code. Chat request validation and provider calls are implemented in server-only modules; the provider does not silently switch models.
 
+## Voice conversation
+
+The chat microphone uses Meta Muse Voice Transcribe (`muse-voice-transcribe-1.0`) through the server-only `POST /api/voice/transcribe` route. The route sends WAV audio as multipart form data to `https://api.meta.ai/v1/asr/transcribe`, authenticated with a bearer token from the same server-only `MODEL_API_KEY` as chat, and receives a JSON transcript. See Meta's [speech-to-text guide](https://dev.meta.ai/docs/speech-to-text) and [transcription API reference](https://dev.meta.ai/docs/api-reference/voice/transcribe). Meta accepts mono 16-bit PCM RIFF/WAVE at 16 kHz or 24 kHz, up to 10 minutes and 32 MB; ROCKY applies a more conservative two-minute, 8-MB cap. A read-only Meta model catalog check on 2026-10-27 returned HTTP 200 and listed both Muse Voice Transcribe 1.0 and Muse Spark 1.3 for this key; a short locally synthesized test phrase was transcribed successfully through the app route.
+
+Recording starts only after the user activates the microphone. The browser converts captured mono audio to 16-bit PCM WAV at 16 kHz, stops after two minutes, and allows cancellation. The server independently checks the MIME type, WAV structure, channel count, bit depth, sample rate, duration, and request size (8 MB max) before forwarding it. Audio is held temporarily in memory for transcription; it is not written to the database or filesystem. The returned transcript is placed in the composer for review and editing, and is only persisted if sent as an ordinary chat message. Voice is optional; typed chat remains available if permission or transcription fails.
+
+Meta Voice Transcribe is speech-to-text only; the Meta Model API does not provide text-to-speech. When a browser supports it, assistant messages offer explicitly started, pausable, and stoppable playback using that browser's native speech synthesis. Nothing is spoken automatically, and this browser voice is not a Meta model. A server-side Azure Speech TTS adapter is a compatible optional provider for a future consistent voice; see Microsoft's [text-to-speech documentation](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/text-to-speech). It would require separate credentials and is not configured in ROCKY.
+
 The chat tables are managed with Drizzle migrations. Review generated SQL before applying schema changes:
 
 ```bash

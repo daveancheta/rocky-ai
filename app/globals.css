@@ -274,6 +274,16 @@
 .composer input::placeholder { color: #aaa397; }
 .composer-mic, .send-button { display: grid; flex: 0 0 auto; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; color: #8c857a; background: transparent; cursor: pointer; }
 .composer-mic:hover { background: var(--background); }
+.composer-mic.is-listening { color: #fff; background: #88744f; }
+.voice-status, .voice-error { display: flex; align-items: center; gap: 8px; margin: 0 13px 8px; padding: 8px 10px; border-radius: 7px; color: #786947; background: #f7f4ed; font-size: 10px; }
+.voice-status { min-height: 34px; }
+.voice-recording-indicator { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #a35f52; box-shadow: 0 0 0 3px rgb(163 95 82 / 12%); }
+.voice-dismiss { margin-left: auto; }
+.voice-error { justify-content: space-between; color: #8e5047; background: #fbf1ef; }
+.message-speech-controls { display: flex; align-items: center; gap: 2px; margin: 2px 0 0 3px; color: var(--taupe); }
+.message-speech-controls > span { margin-right: 4px; font-size: 9px; }
+.message-speech-controls button { color: inherit; }
+.message-speech-error { margin: 2px 0 0 5px; color: #8e5047; font-size: 10px; }
 .send-button { width: 32px !important; height: 32px !important; border-radius: 7px !important; background: #39352e !important; color: white !important; }
 .send-button:disabled { opacity: .48; }
 .composer-note { margin: 8px 14px 12px; color: #a19a8e; text-align: center; font-size: 9px; }

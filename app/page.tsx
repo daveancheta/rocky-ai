@@ -76,7 +76,7 @@ export default function Home() {
           <ConversationPanel />
           <Card className="privacy-note gap-0 ring-0">
             <span className="privacy-icon"><Coffee size={15} /></span>
-            <p><strong>A note on this demo</strong><br />Rocky is a visual prototype. Voice, camera, AI replies, and long-term memory are not connected.</p>
+            <p><strong>A note on this demo</strong><br />Companion awareness is a visual preview. Chat and memory use server services; push-to-talk audio is sent for transcription only after you stop recording.</p>
           </Card>
         </aside>
       </div>

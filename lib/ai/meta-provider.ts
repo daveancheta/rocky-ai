@@ -19,6 +19,10 @@ export type MuseSparkResult = {
   outputText: string
 }
 
+export type MuseVoiceTranscription = {
+  transcript: string
+}
+
 export class MetaModelApiError extends Error {
   constructor(
     message: string,
@@ -168,4 +172,77 @@ export async function generateWithMuseSpark(
     model: parsedResponse.data.model ?? MUSE_SPARK_MODEL,
     outputText,
   }
+}
+
+export async function transcribeWithMuseVoice(
+  audio: Uint8Array,
+  options: { signal?: AbortSignal } = {},
+): Promise<MuseVoiceTranscription> {
+  const apiKey = process.env.MODEL_API_KEY
+  if (!apiKey) {
+    throw new MetaModelApiError("MODEL_API_KEY is not configured on the server.")
+  }
+
+  const audioBuffer = new ArrayBuffer(audio.byteLength)
+  new Uint8Array(audioBuffer).set(audio)
+  const formData = new FormData()
+  formData.set(
+    "request",
+    new Blob(
+      [
+        JSON.stringify({
+          model: "muse-voice-transcribe-1.0",
+          audioEncoding: "WAV",
+          mode: "PUSH_TO_TALK",
+        }),
+      ],
+      { type: "application/json" },
+    ),
+  )
+  formData.set("audio", new Blob([audioBuffer], { type: "audio/wav" }), "recording.wav")
+
+  let response: Response
+  try {
+    response = await fetch("https://api.meta.ai/v1/asr/transcribe", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+      body: formData,
+      signal: options.signal,
+    })
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError")
+    ) {
+      throw error
+    }
+    throw new MetaModelApiError("Could not reach the Meta Voice API.")
+  }
+
+  const responseText = await readMetaResponseText(response)
+  let body: unknown
+  try {
+    body = JSON.parse(responseText)
+  } catch {
+    throw new MetaModelApiError("Meta Voice API returned an invalid response.", response.status)
+  }
+
+  if (!response.ok) {
+    throw new MetaModelApiError(
+      `Meta Voice API request failed with status ${response.status}.`,
+      response.status,
+    )
+  }
+
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("transcript" in body) ||
+    typeof body.transcript !== "string" ||
+    body.transcript.length > 20_000
+  ) {
+    throw new MetaModelApiError("Meta Voice API returned an invalid transcript.", response.status)
+  }
+
+  return { transcript: body.transcript.trim() }
 }
