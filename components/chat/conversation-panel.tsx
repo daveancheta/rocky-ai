@@ -15,6 +15,8 @@ import {
 import { useChatStore } from "@/stores/chat-store"
 import { MessageBubble } from "@/components/chat/message-bubble"
 import { useVoiceInput } from "@/components/chat/use-voice-input"
+import { useCompanionStore } from "@/stores/companion-store"
+import { useSettingsStore } from "@/stores/settings-store"
 
 export function ConversationPanel() {
   const messages = useChatStore((store) => store.messages)
@@ -30,14 +32,21 @@ export function ConversationPanel() {
   const startNewConversation = useChatStore((store) => store.startNewConversation)
   const sendMessage = useChatStore((store) => store.sendMessage)
   const retry = useChatStore((store) => store.retry)
+  const isCompanionActive = useCompanionStore((store) => store.isActive)
+  const setCompanionStatus = useCompanionStore((store) => store.setStatus)
+  const setSessionNotice = useCompanionStore((store) => store.setSessionNotice)
+  const speakReplies = useSettingsStore((store) => store.speakReplies)
+  const microphoneEnabled = useSettingsStore((store) => store.microphoneEnabled)
   const [draft, setDraft] = useState("")
-  const appendTranscript = useCallback((transcript: string) => {
-    setDraft((current) =>
-      current.trim() ? `${current.trim()} ${transcript}` : transcript,
-    )
-  }, [])
-  const voice = useVoiceInput(appendTranscript)
+  const submitTranscript = useCallback((transcript: string) => {
+    setDraft("")
+    void sendMessage(transcript)
+  }, [sendMessage])
+  const voice = useVoiceInput(submitTranscript)
+  const cancelVoice = voice.cancel
   const endRef = useRef<HTMLDivElement>(null)
+  const wasSendingRef = useRef(false)
+  const previousAssistantIdRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     void loadHistory()
@@ -46,6 +55,47 @@ export function ConversationPanel() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
   }, [messages, isSending, isLoadingHistory])
+
+  useEffect(() => {
+    if (!isCompanionActive) {
+      cancelVoice()
+      window.speechSynthesis?.cancel()
+      return
+    }
+    if (voice.status === "recording") setCompanionStatus("listening")
+    else if (voice.status === "processing" || isSending) setCompanionStatus("thinking")
+    else if (["listening", "thinking"].includes(useCompanionStore.getState().status)) setCompanionStatus("ready")
+  }, [cancelVoice, isCompanionActive, isSending, setCompanionStatus, voice.status])
+
+  useEffect(() => {
+    if (isSending) {
+      wasSendingRef.current = true
+      previousAssistantIdRef.current = messages.at(-1)?.role === "assistant" ? messages.at(-1)?.id : undefined
+      return
+    }
+    if (!wasSendingRef.current) return
+    wasSendingRef.current = false
+    const answer = messages.at(-1)
+    if (answer?.role !== "assistant" || answer.id === previousAssistantIdRef.current) return
+    if (isCompanionActive && speakReplies && !window.speechSynthesis) {
+      setSessionNotice("Spoken replies aren't supported in this browser. Text chat remains available.")
+      return
+    }
+    if (!isCompanionActive || !speakReplies) {
+      if (isCompanionActive && useCompanionStore.getState().status === "thinking") setCompanionStatus("ready")
+      return
+    }
+    const speech = new SpeechSynthesisUtterance(answer.content)
+    speech.onstart = () => setCompanionStatus("speaking")
+    speech.onend = () => {
+      if (useCompanionStore.getState().isActive) setCompanionStatus("ready")
+    }
+    speech.onerror = () => {
+      if (useCompanionStore.getState().isActive) setCompanionStatus("ready")
+    }
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(speech)
+  }, [isSending, isCompanionActive, messages, setCompanionStatus, setSessionNotice, speakReplies])
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -168,7 +218,7 @@ export function ConversationPanel() {
       )}
       {voice.transcript && voice.status === "idle" && (
         <div className="voice-status" role="status" aria-live="polite">
-          <Check size={14} /> Review or edit the transcript before sending.
+          <Check size={14} /> You said: “{voice.transcript}”
           <Button
             type="button"
             variant="ghost"
@@ -211,12 +261,14 @@ export function ConversationPanel() {
           className={`composer-mic ${voice.status === "recording" ? "is-listening" : ""}`}
           type="button"
           onClick={() => {
+            if (!isCompanionActive) return
+            if (window.speechSynthesis?.speaking) window.speechSynthesis.cancel()
             if (voice.status === "recording") void voice.stopRecording()
             else if (voice.status === "idle") void voice.startRecording()
           }}
-          disabled={isSending || isLoadingHistory || voice.status === "requesting" || voice.status === "processing"}
-          aria-label={voice.status === "recording" ? "Stop recording and transcribe" : voice.status === "processing" ? "Transcribing recording" : "Start voice recording"}
-          title={voice.status === "recording" ? "Stop recording and transcribe" : "Start voice recording"}
+          disabled={!isCompanionActive || !microphoneEnabled || isSending || isLoadingHistory || voice.status === "requesting" || voice.status === "processing"}
+          aria-label={voice.status === "recording" ? "Stop recording and send transcript" : voice.status === "processing" ? "Transcribing recording" : "Start push-to-talk recording"}
+          title={voice.status === "recording" ? "Stop recording and send transcript" : microphoneEnabled ? "Start push to talk" : "Enable push-to-talk in Settings"}
         >
           {voice.status === "recording" ? <Square size={15} /> : voice.status === "requesting" || voice.status === "processing" ? <LoaderCircle size={16} className="animate-spin" /> : <Mic size={17} />}
         </Button>

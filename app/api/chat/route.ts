@@ -144,9 +144,10 @@ export async function POST(request: Request) {
         : undefined,
     })
     const result = await generateWithMuseSpark({ input: conversation.input }, {
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(45_000)]),
       instructions: conversation.instructions,
     })
+    if (request.signal.aborted) return new Response(null, { status: 499 })
     if (result.outputText.length > 40_000) {
       console.error("Muse Spark response exceeded the allowed text length.")
       return Response.json(

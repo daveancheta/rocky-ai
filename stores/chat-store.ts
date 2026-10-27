@@ -12,6 +12,7 @@ import type {
 } from "@/types/chat"
 import { useSettingsStore } from "@/stores/settings-store"
 import { useAwarenessStore } from "@/stores/awareness-store"
+import { analyzeVisionImage } from "@/lib/api/vision"
 
 type ChatStore = {
   messages: ChatMessage[]
@@ -28,7 +29,10 @@ type ChatStore = {
   startNewConversation: () => void
   sendMessage: (content: string) => Promise<void>
   retry: () => Promise<void>
+  cancelCurrent: () => void
 }
+
+let activeRequest: AbortController | undefined
 
 async function submitMessage(content: string, appendUser: boolean) {
   const state = useChatStore.getState()
@@ -51,13 +55,40 @@ async function submitMessage(content: string, appendUser: boolean) {
   }))
 
   try {
-    const observation = useAwarenessStore.getState().latestVisionObservation
+    const controller = new AbortController()
+    activeRequest = controller
+    const latestObservation = useAwarenessStore.getState().latestVisionObservation
+    let observation = latestObservation
+      ? { text: latestObservation.text, observedAt: latestObservation.observedAt }
+      : undefined
+    const age = latestObservation ? Date.now() - Date.parse(latestObservation.observedAt) : Infinity
+    const locationQuestion = trimmed.match(/\b(?:where is|where are|find|locate|can you see)\s+(?:my|the|a|an)?\s*([^?.!,]{2,60})/i)
+    if (latestObservation?.image && age >= 0 && age < 5 * 60_000 && locationQuestion?.[1]) {
+      try {
+        const target = locationQuestion[1].trim()
+        const result = await analyzeVisionImage(latestObservation.image, "segmentation", target, controller.signal)
+        if (result.kind === "segmentation") {
+          const locations = result.boxes.map((box) => {
+            const x = Math.round(((box.x1 + box.x2) / 2 / box.width) * 100)
+            const y = Math.round(((box.y1 + box.y2) / 2 / box.height) * 100)
+            return `around ${x}% from the left and ${y}% from the top of the frame`
+          })
+          observation = {
+            ...observation!,
+            text: `${observation!.text}\nSAM 3.1 search for “${target}”: ${locations.length ? locations.join("; ") : "no matching object region was returned"}. These are approximate image coordinates, not a room location.`,
+          }
+        }
+      } catch {
+        // Continue with the scene description if object segmentation is unavailable.
+      }
+    }
     const response = await sendChatMessage({
       message: trimmed,
       conversationId: state.conversationId,
       personality: useSettingsStore.getState().personality,
       observation,
-    })
+    }, controller.signal)
+    if (activeRequest === controller) activeRequest = undefined
     if (observation) useAwarenessStore.getState().clearLatestVisionObservation(observation.observedAt)
     const updatedAt = response.message.createdAt
     const summary: ConversationSummary = {
@@ -93,6 +124,21 @@ async function submitMessage(content: string, appendUser: boolean) {
       }
     })
   } catch (error) {
+    if (activeRequest?.signal.aborted) {
+      activeRequest = undefined
+      useChatStore.setState((current) => {
+        if (!appendUser) return { isSending: false, error: undefined, lastMessage: undefined }
+        const index = current.messages.findLastIndex((message) => message.role === "user" && message.content === trimmed)
+        return {
+          messages: index < 0 ? current.messages : current.messages.filter((_, messageIndex) => messageIndex !== index),
+          isSending: false,
+          error: undefined,
+          lastMessage: undefined,
+        }
+      })
+      return
+    }
+    activeRequest = undefined
     useChatStore.setState({
       isSending: false,
       error: error instanceof Error ? error.message : "Something went wrong.",
@@ -194,5 +240,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const message = get().lastMessage
     if (!message) return Promise.resolve()
     return submitMessage(message, false)
+  },
+  cancelCurrent: () => {
+    activeRequest?.abort()
   },
 }))

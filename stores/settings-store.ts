@@ -8,14 +8,16 @@ type SettingsStore = {
   appearance: Appearance
   personality: Personality
   voice: "Not connected"
-  quietMode: boolean
-  interruptions: "gentle" | "only_when_needed"
   memoryEnabled: boolean
+  cameraMonitoring: boolean
+  microphoneEnabled: boolean
+  speakReplies: boolean
   setAppearance: (appearance: Appearance) => void
   setPersonality: (personality: Personality) => void
-  setQuietMode: (quietMode: boolean) => void
-  setInterruptions: (interruptions: "gentle" | "only_when_needed") => void
   setMemoryEnabled: (memoryEnabled: boolean) => void
+  setCameraMonitoring: (enabled: boolean) => void
+  setMicrophoneEnabled: (enabled: boolean) => void
+  setSpeakReplies: (enabled: boolean) => void
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -24,14 +26,16 @@ export const useSettingsStore = create<SettingsStore>()(
       appearance: "light",
       personality: "Calm",
       voice: "Not connected",
-      quietMode: false,
-      interruptions: "gentle",
       memoryEnabled: true,
+      cameraMonitoring: false,
+      microphoneEnabled: true,
+      speakReplies: false,
       setAppearance: (appearance) => set({ appearance }),
       setPersonality: (personality) => set({ personality }),
-      setQuietMode: (quietMode) => set({ quietMode }),
-      setInterruptions: (interruptions) => set({ interruptions }),
       setMemoryEnabled: (memoryEnabled) => set({ memoryEnabled }),
+      setCameraMonitoring: (cameraMonitoring) => set({ cameraMonitoring }),
+      setMicrophoneEnabled: (microphoneEnabled) => set({ microphoneEnabled }),
+      setSpeakReplies: (speakReplies) => set({ speakReplies }),
     }),
     {
       name: "rocky-preferences",
@@ -40,9 +44,10 @@ export const useSettingsStore = create<SettingsStore>()(
       partialize: (state) => ({
         appearance: state.appearance,
         personality: state.personality,
-        quietMode: state.quietMode,
-        interruptions: state.interruptions,
         memoryEnabled: state.memoryEnabled,
+        cameraMonitoring: state.cameraMonitoring,
+        microphoneEnabled: state.microphoneEnabled,
+        speakReplies: state.speakReplies,
         voice: state.voice,
       }),
     },

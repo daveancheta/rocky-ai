@@ -131,20 +131,27 @@
 .home-header { align-items: center; margin-bottom: 27px; }
 .home-header h1 { font-size: clamp(32px, 4vw, 42px); }
 .home-grid { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(310px, .84fr); align-items: start; gap: 20px; }
-.companion-layout { display: grid; grid-template-columns: minmax(0, .92fr) minmax(360px, 1.08fr); align-items: start; gap: 20px; }
+.companion-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 20px; width: min(100%, 860px); margin: 0 auto; }
+.companion-stage { width: 100%; }
+.companion-header { width: min(100%, 860px); margin: 0 auto 20px; }
+.companion-experience { width: 100%; }
+.companion-camera-feed { position: fixed; width: 1px; height: 1px; inset: auto auto 0 0; opacity: 0; pointer-events: none; }
+.presence-panel { min-height: 0; padding: 23px clamp(18px, 4vw, 34px) 18px; }
+.presence-main { min-height: 205px; }
+.presence-session-status { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 18px; min-height: 20px; margin: 0 0 14px; color: var(--taupe); font-size: 11px; }
+.presence-session-status > span { display: inline-flex; align-items: center; gap: 6px; }
+.presence-session-status .session-notice { color: var(--primary); }
+.companion-session-button { min-width: 205px; min-height: 46px; margin: 0 auto; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 6px 16px rgb(156 62 15 / 18%); }
+.companion-session-button:hover { background: #963b09; }
+.presence-footnote { margin: 12px 0 0; text-align: center; }
+.companion-layout > .conversation-card { width: 100%; }
 .companion-stage { display: grid; gap: 14px; min-width: 0; }
-.awareness-inline { padding: 13px; border: 1px solid var(--border); border-radius: 13px; background: color-mix(in srgb, var(--card) 82%, transparent); }
-.awareness-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 2px 10px; color: var(--taupe); font-size: 10px; }
-.awareness-inline-heading > span:first-child { display: inline-flex; align-items: center; gap: 7px; color: var(--foreground); font-size: 9px; font-weight: 650; letter-spacing: .8px; }
-.awareness-inline .visual-awareness-card { padding: 0; border: 0; background: transparent; }
-.awareness-inline .visual-awareness-header { padding: 0; }
-.awareness-inline .visual-awareness-content { padding: 8px 0 0 42px; }
-.awareness-inline .visual-awareness-content > p { margin-bottom: 9px; font-size: 11px; }
-.awareness-inline .visual-awareness-icon { width: 32px; height: 32px; }
 .presence-awareness-status { color: var(--taupe); font-size: 10px; }
 @media (max-width: 900px) { .companion-layout { grid-template-columns: minmax(0, 1fr); } }
 .home-primary, .home-aside { display: grid; gap: 19px; min-width: 0; }
 .presence-panel { position: relative; overflow: hidden; min-height: 318px; padding: 19px 22px 14px; border: 1px solid #e8e1d4; border-radius: 13px; background: linear-gradient(140deg, #fff 20%, #faf8f3 100%); }
+.companion-stage .presence-panel { min-height: 0; padding: 23px clamp(18px, 4vw, 34px) 18px; }
+.companion-stage .presence-main { min-height: 205px; }
 .dark .presence-panel { border-color: var(--border); background: linear-gradient(140deg, #292724, #302d28); }
 .presence-topline { display: flex; align-items: center; justify-content: space-between; }
 .presence-top-actions { display: flex; align-items: center; gap: 7px; }
@@ -168,6 +175,8 @@
 .presence-listening .orb-core { border-color: #d5bd8b; box-shadow: 0 0 0 7px rgb(198 173 122 / 10%), 0 8px 28px rgb(119 94 49 / 15%); }
 .presence-listening .ring-one { border-color: rgb(198 173 122 / 45%); }
 .presence-thinking .orb-core { background: radial-gradient(circle at 37% 30%, #fffefa, #eee8df 64%, #ddd3c4); }
+.presence-speaking .orb-core { box-shadow: 0 0 0 8px rgb(196 90 32 / 10%), 0 8px 28px rgb(119 94 49 / 16%); }
+.presence-observing .ring-one { border-color: rgb(198 173 122 / 45%); }
 .presence-paused .orb-core { filter: grayscale(.55); opacity: .76; }
 .presence-controls { display: flex; align-items: center; justify-content: center; gap: 9px; }
 .control-button { height: 34px !important; padding: 0 10px !important; border-color: var(--border) !important; border-radius: 7px !important; background: rgb(255 255 255 / 80%) !important; color: #6f6a61 !important; font-size: 10px !important; font-weight: 500 !important; }

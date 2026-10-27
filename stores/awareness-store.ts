@@ -12,11 +12,11 @@ type AwarenessStore = {
   cameraPermission: CameraPermission
   connectionStatus: ConnectionStatus
   observations: AwarenessObservation[]
-  latestVisionObservation?: { text: string; observedAt: string }
+  latestVisionObservation?: { text: string; observedAt: string; image?: Blob }
   fetchObservations: (signal?: AbortSignal) => Promise<void>
   setEnabled: (enabled: boolean) => void
-  setLatestVisionObservation: (text: string) => void
-  clearLatestVisionObservation: (observedAt: string) => void
+  setLatestVisionObservation: (text: string, image?: Blob) => void
+  clearLatestVisionObservation: (observedAt?: string) => void
   dismiss: (id: string) => void
 }
 
@@ -51,11 +51,11 @@ export const useAwarenessStore = create<AwarenessStore>((set) => ({
     }
   },
   setEnabled: (isEnabled) => set({ isEnabled }),
-  setLatestVisionObservation: (text) => set({
-    latestVisionObservation: { text, observedAt: new Date().toISOString() },
+  setLatestVisionObservation: (text, image) => set({
+    latestVisionObservation: { text, observedAt: new Date().toISOString(), image },
   }),
   clearLatestVisionObservation: (observedAt) => set((state) => ({
-    latestVisionObservation: state.latestVisionObservation?.observedAt === observedAt
+    latestVisionObservation: !observedAt || state.latestVisionObservation?.observedAt === observedAt
       ? undefined
       : state.latestVisionObservation,
   })),

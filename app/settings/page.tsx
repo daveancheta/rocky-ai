@@ -6,17 +6,9 @@ import { AudioLines, Check, ChevronRight, Eye, Mic, Moon, Sun, Monitor, ShieldCh
 import { useSettingsStore, type Appearance, type Personality } from "@/stores/settings-store"
 import { useMemoryStore } from "@/stores/memory-store"
 import { getMemoryPreference, updateMemoryPreference } from "@/lib/api/memories"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 const appearances: Array<{ value: Appearance; label: string; icon: typeof Sun }> = [
   { value: "light", label: "Light", icon: Sun },
@@ -36,12 +28,14 @@ export default function SettingsPage() {
   const setAppearance = useSettingsStore((store) => store.setAppearance)
   const personality = useSettingsStore((store) => store.personality)
   const setPersonality = useSettingsStore((store) => store.setPersonality)
-  const quietMode = useSettingsStore((store) => store.quietMode)
-  const setQuietMode = useSettingsStore((store) => store.setQuietMode)
-  const interruptions = useSettingsStore((store) => store.interruptions)
-  const setInterruptions = useSettingsStore((store) => store.setInterruptions)
   const memoryEnabled = useSettingsStore((store) => store.memoryEnabled)
   const setMemoryEnabled = useSettingsStore((store) => store.setMemoryEnabled)
+  const cameraMonitoring = useSettingsStore((store) => store.cameraMonitoring)
+  const setCameraMonitoring = useSettingsStore((store) => store.setCameraMonitoring)
+  const microphoneEnabled = useSettingsStore((store) => store.microphoneEnabled)
+  const setMicrophoneEnabled = useSettingsStore((store) => store.setMicrophoneEnabled)
+  const speakReplies = useSettingsStore((store) => store.speakReplies)
+  const setSpeakReplies = useSettingsStore((store) => store.setSpeakReplies)
   const clearMemories = useMemoryStore((store) => store.clear)
   const [cleared, setCleared] = useState(false)
   const [memoryPreferenceLoading, setMemoryPreferenceLoading] = useState(true)
@@ -123,44 +117,21 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="setting-row">
-          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Voice playback</strong><span>Assistant messages can be spoken using your browser&apos;s built-in voice. It is not Meta text-to-speech.</span></div></div>
-          <Badge variant="outline" className="coming-soon">Browser voice</Badge>
-        </div>
-        <div className="setting-row">
-          <div><strong>Quiet mode</strong><span>Keep Rocky&apos;s visual presence calm and still.</span></div>
-          <PreferenceToggle checked={quietMode} onChange={setQuietMode} label="Quiet mode" />
-        </div>
-        <div className="setting-row">
-          <div><strong>Interruptions</strong><span>How often should Rocky speak up?</span></div>
-          <Select
-            value={interruptions}
-            onValueChange={(value) => {
-              if (value === "gentle" || value === "only_when_needed") setInterruptions(value)
-            }}
-          >
-            <SelectTrigger aria-label="Interruption preference" className="setting-select">
-              <SelectValue>
-                {interruptions === "gentle" ? "Gentle suggestions" : "Only when asked"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gentle">Gentle suggestions</SelectItem>
-              <SelectItem value="only_when_needed">Only when asked</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Speak replies</strong><span>Use your browser&apos;s built-in speech voice while companion mode is active. No audio is sent to Rocky.</span></div></div>
+          <PreferenceToggle checked={speakReplies} onChange={setSpeakReplies} label="Speak replies aloud" />
         </div>
       </Card>
 
       <Card role="region" aria-labelledby="devices-heading" className="settings-section gap-0 ring-0">
-        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2 id="devices-heading">Camera & microphone</h2><p>Permissions are requested only after you start a feature.</p></div></div>
+        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2 id="devices-heading">Camera & microphone</h2><p>Browser access is requested only from an active companion session or push-to-talk action.</p></div></div>
         <div className="setting-row">
           <div className="setting-row-icon"><Mic size={17} /><div><strong>Push-to-talk</strong><span>Recording starts only when you activate it. Audio is sent for transcription and is not stored.</span></div></div>
-          <Badge variant="outline" className="permission-status">Optional</Badge>
+          <PreferenceToggle checked={microphoneEnabled} onChange={setMicrophoneEnabled} label="Enable push-to-talk microphone" />
         </div>
-        <Link href="/#visual-awareness" className="setting-row setting-link">
-          <div className="setting-row-icon"><Eye size={17} /><div><strong>Visual awareness</strong><span>Still-image analysis is available on Home. The camera stays off until you start it.</span></div></div>
-          <ChevronRight size={17} />
-        </Link>
+        <div className="setting-row">
+          <div className="setting-row-icon"><Eye size={17} /><div><strong>Allow camera during companion mode</strong><span>When enabled here, starting a session requests camera access and analyzes a still frame about once a minute. Frames aren&apos;t saved.</span></div></div>
+          <PreferenceToggle checked={cameraMonitoring} onChange={setCameraMonitoring} label="Allow camera monitoring during companion mode" />
+        </div>
       </Card>
 
       <Card role="region" aria-labelledby="privacy-heading" className="settings-section gap-0 ring-0">
