@@ -1,7 +1,7 @@
 "use client"
 
 import { useSyncExternalStore } from "react"
-import { CalendarDays, CloudSun, Coffee, ArrowRight, Sparkles } from "lucide-react"
+import { CalendarDays, CloudSun, Coffee, ArrowRight, BookOpen } from "lucide-react"
 import Link from "next/link"
 import { RockyPresence } from "@/components/rocky/rocky-presence"
 import { AwarenessCard } from "@/components/awareness/awareness-card"
@@ -51,7 +51,7 @@ export default function Home() {
                 <span className="context-detail">No live sensing · demo only</span>
               </article>
               <article className="context-card">
-                <span className="context-icon"><Sparkles size={17} /></span>
+                <span className="context-icon"><BookOpen size={17} /></span>
                 <span className="context-label">RECENT MEMORY</span>
                 <strong>A gentle start</strong>
                 <Link href="/memories" className="context-detail context-link">View sample memory <ArrowRight size={12} /></Link>

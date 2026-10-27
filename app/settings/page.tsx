@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Check, ChevronRight, Eye, Mic, Moon, Sun, Monitor, ShieldCheck, Sparkles, Volume2 } from "lucide-react"
+import { AudioLines, Check, ChevronRight, Eye, Mic, Moon, Sun, Monitor, ShieldCheck, Volume2 } from "lucide-react"
 import { useSettingsStore, type Appearance, type Personality } from "@/stores/settings-store"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { useMemoryStore } from "@/stores/memory-store"
@@ -61,7 +61,7 @@ export default function SettingsPage() {
       </section>
 
       <section className="settings-section">
-        <div className="settings-section-heading"><span className="settings-section-icon"><Sparkles size={17} /></span><div><h2>Voice & personality</h2><p>Shape the way Rocky feels in conversation.</p></div></div>
+        <div className="settings-section-heading"><span className="settings-section-icon"><AudioLines size={17} /></span><div><h2>Voice & personality</h2><p>Shape the way Rocky feels in conversation.</p></div></div>
         <div className="setting-row personality-row">
           <div><strong>Personality</strong><span>Choose a tone that feels right to you.</span></div>
           <div className="personality-options" role="group" aria-label="Personality">

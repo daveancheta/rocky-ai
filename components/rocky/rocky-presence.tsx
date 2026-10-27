@@ -1,6 +1,6 @@
 "use client"
 
-import { Camera, Mic, Pause, Play, Sparkles } from "lucide-react"
+import { Camera, Mic, Pause, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { useRockyStore } from "@/stores/rocky-store"
@@ -41,7 +41,7 @@ export function RockyPresence() {
           <div className="orb-ring ring-one" />
           <div className="orb-ring ring-two" />
           <div className="orb-ring ring-three" />
-          <div className="orb-core"><Sparkles size={31} strokeWidth={1.25} /></div>
+          <div className="orb-core" />
         </div>
         <div className="presence-copy">
           <p className="presence-kicker">A little space to be</p>

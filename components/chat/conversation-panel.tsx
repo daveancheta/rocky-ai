@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, type FormEvent } from "react"
-import { ArrowUp, Mic, RotateCcw, Sparkles } from "lucide-react"
+import { ArrowUp, MessageCircle, Mic, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useChatStore } from "@/stores/chat-store"
 import { MessageBubble } from "@/components/chat/message-bubble"
@@ -34,12 +34,12 @@ export function ConversationPanel() {
           <span className="eyebrow">A THOUGHTFUL CONVERSATION</span>
           <h2>Let’s talk</h2>
         </div>
-        <span className="conversation-demo"><Sparkles size={13} /> Sample conversation</span>
+        <span className="conversation-demo">Sample conversation</span>
       </div>
       <div className="message-list" aria-live="polite">
         {messages.length === 0 ? (
           <div className="chat-empty">
-            <span className="empty-sparkle"><Sparkles size={20} /></span>
+            <span className="empty-sparkle"><MessageCircle size={19} /></span>
             <p>Every conversation can start somewhere.</p>
             <span>Share what’s on your mind, or simply say hello.</span>
           </div>
@@ -50,7 +50,7 @@ export function ConversationPanel() {
         )}
         {isSending && (
           <div className="message-row assistant">
-            <span className="message-avatar"><Sparkles size={13} /></span>
+            <span className="message-avatar" aria-label="Rocky">R</span>
             <div className="message-content"><p className="message-bubble typing-dots"><i /><i /><i /></p></div>
           </div>
         )}

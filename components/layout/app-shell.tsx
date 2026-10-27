@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, type ReactNode } from "react"
-import { Home, Moon, Settings, Sparkles, Sun, Brain } from "lucide-react"
+import { Home, Moon, Settings, Sun, Brain } from "lucide-react"
 import { useSettingsStore } from "@/stores/settings-store"
 import type { Appearance } from "@/stores/settings-store"
 import { cn } from "@/lib/utils"
@@ -46,7 +46,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-frame">
       <aside className="sidebar">
         <Link href="/" className="brand" aria-label="Rocky home">
-          <span className="brand-mark"><Sparkles size={17} strokeWidth={1.7} /></span>
           <span>rocky<span className="brand-period">.</span></span>
         </Link>
         <span className="sidebar-label">YOUR SPACE</span>
@@ -82,7 +81,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
       <div className="mobile-header">
         <Link href="/" className="brand" aria-label="Rocky home">
-          <span className="brand-mark"><Sparkles size={17} strokeWidth={1.7} /></span>
           <span>rocky<span className="brand-period">.</span></span>
         </Link>
         <span className="mobile-status"><span className="status-dot" /> Demo mode</span>
