@@ -12,6 +12,7 @@ type SettingsStore = {
   cameraMonitoring: boolean
   proactiveEnabled: boolean
   speakProactive: boolean
+  speakReplies: boolean
   quietHoursEnabled: boolean
   quietHoursStart: string
   quietHoursEnd: string
@@ -22,6 +23,7 @@ type SettingsStore = {
   setCameraMonitoring: (enabled: boolean) => void
   setProactiveEnabled: (enabled: boolean) => void
   setSpeakProactive: (enabled: boolean) => void
+  setSpeakReplies: (enabled: boolean) => void
   setQuietHoursEnabled: (enabled: boolean) => void
   setQuietHoursStart: (time: string) => void
   setQuietHoursEnd: (time: string) => void
@@ -38,6 +40,7 @@ export const useSettingsStore = create<SettingsStore>()(
       cameraMonitoring: false,
       proactiveEnabled: true,
       speakProactive: false,
+      speakReplies: false,
       quietHoursEnabled: false,
       quietHoursStart: "22:00",
       quietHoursEnd: "08:00",
@@ -48,6 +51,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setCameraMonitoring: (cameraMonitoring) => set({ cameraMonitoring }),
       setProactiveEnabled: (proactiveEnabled) => set({ proactiveEnabled }),
       setSpeakProactive: (speakProactive) => set({ speakProactive }),
+      setSpeakReplies: (speakReplies) => set({ speakReplies }),
       setQuietHoursEnabled: (quietHoursEnabled) => set({ quietHoursEnabled }),
       setQuietHoursStart: (quietHoursStart) => set({ quietHoursStart }),
       setQuietHoursEnd: (quietHoursEnd) => set({ quietHoursEnd }),
@@ -64,6 +68,7 @@ export const useSettingsStore = create<SettingsStore>()(
         cameraMonitoring: state.cameraMonitoring,
         proactiveEnabled: state.proactiveEnabled,
         speakProactive: state.speakProactive,
+        speakReplies: state.speakReplies,
         quietHoursEnabled: state.quietHoursEnabled,
         quietHoursStart: state.quietHoursStart,
         quietHoursEnd: state.quietHoursEnd,

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useCompanionStore } from "@/stores/companion-store"
 import { useAwarenessStore } from "@/stores/awareness-store"
+import { CompanionConversation } from "@/components/companion/companion-conversation"
 
 const statusCopy = {
   ready: "Ready when you are",
@@ -43,7 +44,10 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
     <Card className={`presence-panel presence-${status} gap-0 ring-0`} aria-label="ROCKY companion presence">
       <div className="presence-topline">
         <span className="eyebrow"><span className="status-dot" /> ROCKY IS HERE</span>
-        <span className="presence-awareness-status" aria-live="polite">{isActive ? statusCopy[status] : statusCopy.ready}</span>
+        <span className="presence-awareness-status" aria-live="polite">
+          {isActive ? statusCopy[status] : statusCopy.ready}
+          {isActive && (status === "listening" || status === "speaking") && <span className={`presence-sound-wave wave-${status}`} aria-hidden="true"><i /><i /><i /><i /></span>}
+        </span>
       </div>
       <div className="presence-main">
         <div className="presence-orb" aria-hidden="true">
@@ -58,6 +62,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
           <p className="presence-state">{isActive ? "I’m here with you." : "Start a companion session whenever you’re ready."}</p>
         </div>
       </div>
+      {isActive && <CompanionConversation />}
       {isActive && proactiveMessage && <div className="proactive-message" role="status" aria-live="polite">
         <Sparkles size={15} aria-hidden="true" />
         <p>{proactiveMessage.text}</p>

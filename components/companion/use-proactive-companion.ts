@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react"
 import { evaluateProactiveEvent, type ProactiveEvaluationInput } from "@/lib/api/proactive"
 import { useCompanionStore } from "@/stores/companion-store"
 import { useSettingsStore } from "@/stores/settings-store"
+import { speakCompanionText, stopCompanionSpeech } from "@/lib/voice/speech-controller"
 
 type ObservationEvent = { trigger: "observation"; observation: { text: string; observedAt: string; confidence: number } }
 type SessionStartEvent = { trigger: "session_start" }
@@ -14,8 +15,6 @@ export function useProactiveCompanion() {
   const activeRequestRef = useRef<AbortController | null>(null)
   const pendingObservationRef = useRef<ObservationEvent | null>(null)
   const evaluateRef = useRef<(event: ProactiveEvent) => Promise<void>>(async () => {})
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
-
   useEffect(() => useSettingsStore.subscribe((state, previous) => {
     if (previous.proactiveEnabled && !state.proactiveEnabled) {
       activeRequestRef.current?.abort()
@@ -23,11 +22,8 @@ export function useProactiveCompanion() {
       pendingObservationRef.current = null
       useCompanionStore.getState().setProactiveMessage(undefined)
     }
-    if ((previous.proactiveEnabled && !state.proactiveEnabled || previous.speakProactive && !state.speakProactive) &&
-      utteranceRef.current && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel()
-      utteranceRef.current = null
-      if (useCompanionStore.getState().status === "speaking") useCompanionStore.getState().setStatus("ready")
+    if (previous.proactiveEnabled && !state.proactiveEnabled || previous.speakProactive && !state.speakProactive) {
+      stopCompanionSpeech("proactive")
     }
   }), [])
 
@@ -36,10 +32,7 @@ export function useProactiveCompanion() {
     pendingObservationRef.current = null
     activeRequestRef.current?.abort()
     activeRequestRef.current = null
-    if (utteranceRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel()
-      utteranceRef.current = null
-    }
+    stopCompanionSpeech("proactive")
     useCompanionStore.getState().setProactiveMessage(undefined)
   }, [])
 
@@ -98,38 +91,15 @@ export function useProactiveCompanion() {
 
       const status = useCompanionStore.getState().status
       const maySpeak = result.speak && currentSettings.speakProactive && !["listening", "speaking"].includes(status)
-      if (
-        maySpeak &&
-        typeof window !== "undefined" &&
-        "speechSynthesis" in window &&
-        "SpeechSynthesisUtterance" in window &&
-        !window.speechSynthesis.speaking
-      ) {
-        const utterance = new SpeechSynthesisUtterance(message.text)
-        utterance.lang = navigator.language
-        utteranceRef.current = utterance
-        utterance.onend = () => {
-          if (utteranceRef.current !== utterance) return
-          utteranceRef.current = null
+      if (maySpeak) speakCompanionText(message.text, {
+        owner: "proactive",
+        onStart: () => useCompanionStore.getState().setStatus("speaking"),
+        onEnd: () => {
           if (useCompanionStore.getState().isActive && useCompanionStore.getState().status === "speaking") {
             useCompanionStore.getState().setStatus("ready")
           }
-        }
-        utterance.onerror = () => {
-          if (utteranceRef.current !== utterance) return
-          utteranceRef.current = null
-          if (useCompanionStore.getState().isActive && useCompanionStore.getState().status === "speaking") {
-            useCompanionStore.getState().setStatus("ready")
-          }
-        }
-        try {
-          useCompanionStore.getState().setStatus("speaking")
-          window.speechSynthesis.speak(utterance)
-        } catch {
-          utteranceRef.current = null
-          useCompanionStore.getState().setStatus("ready")
-        }
-      }
+        },
+      })
     } catch {
       // A failed proactive check stays quiet and does not interrupt the session.
     } finally {

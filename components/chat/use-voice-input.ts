@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { transcribeVoiceRecording } from "@/lib/api/voice"
 import { encodeMonoPcmWav } from "@/lib/audio/wav"
+import { stopCompanionSpeech } from "@/lib/voice/speech-controller"
 
 const MAX_RECORDING_MS = 120_000
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024
@@ -91,8 +92,14 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
     try {
       const result = await transcribeVoiceRecording(audio, controller.signal)
       if (requestId !== actionIdRef.current || !mountedRef.current) return
-      setTranscript(result.transcript)
-      onTranscript(result.transcript)
+      const normalizedTranscript = result.transcript.trim()
+      if (!normalizedTranscript) {
+        setError("No speech was recognized. Try again or type your message.")
+        changeStatus("idle")
+        return
+      }
+      setTranscript(normalizedTranscript)
+      onTranscript(normalizedTranscript)
       changeStatus("idle")
     } catch (caught) {
       if (controller.signal.aborted || requestId !== actionIdRef.current) return
@@ -131,6 +138,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
     sampleChunksRef.current = []
     setTranscript("")
     setError("")
+    stopCompanionSpeech()
     changeStatus("requesting")
 
     let stream: MediaStream | null = null
@@ -138,7 +146,9 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
       const context = new AudioContext()
       contextRef.current = context
       const resumeAudio = context.resume()
-      const requestMicrophone = navigator.mediaDevices.getUserMedia({ audio: true })
+      const requestMicrophone = navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      })
       stream = await requestMicrophone
       if (actionId !== actionIdRef.current || !mountedRef.current) {
         stopTracks(stream)
@@ -191,6 +201,14 @@ export function useVoiceInput(onTranscript: (transcript: string) => void) {
   const clearTranscript = useCallback(() => {
     setTranscript("")
   }, [])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") cancel()
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }, [cancel])
 
   useEffect(() => {
     mountedRef.current = true

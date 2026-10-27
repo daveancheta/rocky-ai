@@ -32,6 +32,8 @@ export default function SettingsPage() {
   const setProactiveEnabled = useSettingsStore((store) => store.setProactiveEnabled)
   const speakProactive = useSettingsStore((store) => store.speakProactive)
   const setSpeakProactive = useSettingsStore((store) => store.setSpeakProactive)
+  const speakReplies = useSettingsStore((store) => store.speakReplies)
+  const setSpeakReplies = useSettingsStore((store) => store.setSpeakReplies)
   const quietHoursEnabled = useSettingsStore((store) => store.quietHoursEnabled)
   const setQuietHoursEnabled = useSettingsStore((store) => store.setQuietHoursEnabled)
   const quietHoursStart = useSettingsStore((store) => store.quietHoursStart)
@@ -119,6 +121,10 @@ export default function SettingsPage() {
         <div className="setting-row">
           <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Speak check-ins aloud</strong><span>Uses browser speech synthesis when available. Messages still appear if speech is unavailable or busy.</span></div></div>
           <PreferenceToggle checked={speakProactive} onChange={setSpeakProactive} label="Speak proactive check-ins aloud" disabled={!proactiveEnabled} />
+        </div>
+        <div className="setting-row">
+          <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Speak Rocky&apos;s replies</strong><span>Read chat replies aloud when browser speech synthesis is available. You can interrupt playback from the companion screen.</span></div></div>
+          <PreferenceToggle checked={speakReplies} onChange={setSpeakReplies} label="Speak Rocky's replies aloud" />
         </div>
         <div className="setting-row">
           <div><strong>Quiet hours</strong><span>Rocky stays quiet during the selected local time range.</span></div>
