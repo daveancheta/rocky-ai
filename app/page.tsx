@@ -7,6 +7,7 @@ import { RockyPresence } from "@/components/rocky/rocky-presence"
 import { AwarenessCard } from "@/components/awareness/awareness-card"
 import { ConversationPanel } from "@/components/chat/conversation-panel"
 import { useSettingsStore } from "@/stores/settings-store"
+import { Card } from "@/components/ui/card"
 
 const subscribeToNothing = () => () => {}
 const getGreeting = () => {
@@ -44,24 +45,24 @@ export default function Home() {
               <span className="context-note">Thoughtful, not intrusive</span>
             </div>
             <div className="context-grid">
-              <article className="context-card">
+              <Card className="context-card gap-0 ring-0">
                 <span className="context-icon"><CloudSun size={17} /></span>
                 <span className="context-label">YOUR ENVIRONMENT</span>
                 <strong>Quiet moment</strong>
                 <span className="context-detail">No live sensing · demo only</span>
-              </article>
-              <article className="context-card">
+              </Card>
+              <Card className="context-card gap-0 ring-0">
                 <span className="context-icon"><BookOpen size={17} /></span>
                 <span className="context-label">RECENT MEMORY</span>
                 <strong>A gentle start</strong>
                 <Link href="/memories" className="context-detail context-link">View sample memory <ArrowRight size={12} /></Link>
-              </article>
-              <article className="context-card">
+              </Card>
+              <Card className="context-card gap-0 ring-0">
                 <span className="context-icon"><CalendarDays size={17} /></span>
                 <span className="context-label">YOUR DAY</span>
                 <strong>Room to begin</strong>
                 <span className="context-detail">Your calendar isn’t connected</span>
-              </article>
+              </Card>
             </div>
           </section>
           <div className="awareness-section">
@@ -73,10 +74,10 @@ export default function Home() {
         </div>
         <aside className="home-aside">
           <ConversationPanel />
-          <div className="privacy-note">
+          <Card className="privacy-note gap-0 ring-0">
             <span className="privacy-icon"><Coffee size={15} /></span>
             <p><strong>A note on this demo</strong><br />Rocky is a visual prototype. Voice, camera, AI replies, and long-term memory are not connected.</p>
-          </div>
+          </Card>
         </aside>
       </div>
     </div>

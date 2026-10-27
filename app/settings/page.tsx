@@ -7,6 +7,17 @@ import { useSettingsStore, type Appearance, type Personality } from "@/stores/se
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { useMemoryStore } from "@/stores/memory-store"
 import { getMemoryPreference, updateMemoryPreference } from "@/lib/api/memories"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const appearances: Array<{ value: Appearance; label: string; icon: typeof Sun }> = [
   { value: "light", label: "Light", icon: Sun },
@@ -17,9 +28,7 @@ const personalities: Personality[] = ["Calm", "Friendly", "Playful", "Supportive
 
 function PreferenceToggle({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
   return (
-    <button className={`toggle ${checked ? "on" : ""}`} role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}>
-      <span />
-    </button>
+    <Switch className="setting-switch data-checked:bg-[#9a8965]" checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled} />
   )
 }
 
@@ -96,29 +105,29 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <section className="settings-section">
-        <div className="settings-section-heading"><span className="settings-section-icon"><Sun size={17} /></span><div><h2>Appearance</h2><p>A comfortable look for every moment.</p></div></div>
+      <Card role="region" aria-labelledby="appearance-heading" className="settings-section gap-0 ring-0">
+        <div className="settings-section-heading"><span className="settings-section-icon"><Sun size={17} /></span><div><h2 id="appearance-heading">Appearance</h2><p>A comfortable look for every moment.</p></div></div>
         <div className="appearance-options" role="group" aria-label="Appearance">
           {appearances.map(({ value, label, icon: Icon }) => (
-            <button key={value} className={`appearance-option ${appearance === value ? "selected" : ""}`} onClick={() => setAppearance(value)} aria-pressed={appearance === value}>
+            <Button type="button" variant={appearance === value ? "secondary" : "outline"} key={value} className={`appearance-option ${appearance === value ? "selected" : ""}`} onClick={() => setAppearance(value)} aria-pressed={appearance === value}>
               <Icon size={17} /><span>{label}</span>{appearance === value && <Check size={15} className="appearance-check" />}
-            </button>
+            </Button>
           ))}
         </div>
         <p className="settings-hint">Dark mode is available. System follows your device preference.</p>
-      </section>
+      </Card>
 
-      <section className="settings-section">
-        <div className="settings-section-heading"><span className="settings-section-icon"><AudioLines size={17} /></span><div><h2>Voice & personality</h2><p>Shape the way Rocky feels in conversation.</p></div></div>
+      <Card role="region" aria-labelledby="personality-heading" className="settings-section gap-0 ring-0">
+        <div className="settings-section-heading"><span className="settings-section-icon"><AudioLines size={17} /></span><div><h2 id="personality-heading">Voice & personality</h2><p>Shape the way Rocky feels in conversation.</p></div></div>
         <div className="setting-row personality-row">
           <div><strong>Personality</strong><span>Choose a tone that feels right to you.</span></div>
           <div className="personality-options" role="group" aria-label="Personality">
-            {personalities.map((item) => <button key={item} className={personality === item ? "selected" : ""} onClick={() => setPersonality(item)} aria-pressed={personality === item}>{item}</button>)}
+            {personalities.map((item) => <Button type="button" variant={personality === item ? "secondary" : "outline"} size="sm" key={item} className={personality === item ? "selected" : ""} onClick={() => setPersonality(item)} aria-pressed={personality === item}>{item}</Button>)}
           </div>
         </div>
         <div className="setting-row">
           <div className="setting-row-icon"><Volume2 size={17} /><div><strong>Voice</strong><span>Voice output is not connected in this demo.</span></div></div>
-          <span className="coming-soon">Not connected</span>
+          <Badge variant="outline" className="coming-soon">Not connected</Badge>
         </div>
         <div className="setting-row">
           <div><strong>Quiet mode</strong><span>Keep Rocky&apos;s visual presence calm and still.</span></div>
@@ -126,27 +135,39 @@ export default function SettingsPage() {
         </div>
         <div className="setting-row">
           <div><strong>Interruptions</strong><span>How often should Rocky speak up?</span></div>
-          <select className="setting-select" value={interruptions} onChange={(event) => setInterruptions(event.target.value as "gentle" | "only_when_needed")}>
-            <option value="gentle">Gentle suggestions</option>
-            <option value="only_when_needed">Only when asked</option>
-          </select>
+          <Select
+            value={interruptions}
+            onValueChange={(value) => {
+              if (value === "gentle" || value === "only_when_needed") setInterruptions(value)
+            }}
+          >
+            <SelectTrigger aria-label="Interruption preference" className="setting-select">
+              <SelectValue>
+                {interruptions === "gentle" ? "Gentle suggestions" : "Only when asked"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gentle">Gentle suggestions</SelectItem>
+              <SelectItem value="only_when_needed">Only when asked</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </section>
+      </Card>
 
-      <section className="settings-section">
-        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2>Camera & microphone</h2><p>Your privacy comes first. Nothing is connected right now.</p></div></div>
+      <Card role="region" aria-labelledby="devices-heading" className="settings-section gap-0 ring-0">
+        <div className="settings-section-heading"><span className="settings-section-icon"><Eye size={17} /></span><div><h2 id="devices-heading">Camera & microphone</h2><p>Your privacy comes first. Nothing is connected right now.</p></div></div>
         <div className="setting-row">
           <div className="setting-row-icon"><Mic size={17} /><div><strong>Microphone</strong><span>Audio capture and speech recognition are not available.</span></div></div>
-          <span className="permission-status">Not connected</span>
+          <Badge variant="outline" className="permission-status">Not connected</Badge>
         </div>
         <div className="setting-row">
           <div className="setting-row-icon"><Eye size={17} /><div><strong>Camera awareness</strong><span>No camera feed or environment analysis is active.</span></div></div>
           <PreferenceToggle checked={isEnabled} onChange={setAwarenessEnabled} label="Camera awareness demo state" />
         </div>
-      </section>
+      </Card>
 
-      <section className="settings-section">
-        <div className="settings-section-heading"><span className="settings-section-icon"><ShieldCheck size={17} /></span><div><h2>Memory & privacy</h2><p>You stay in control of what Rocky remembers.</p></div></div>
+      <Card role="region" aria-labelledby="privacy-heading" className="settings-section gap-0 ring-0">
+        <div className="settings-section-heading"><span className="settings-section-icon"><ShieldCheck size={17} /></span><div><h2 id="privacy-heading">Memory & privacy</h2><p>You stay in control of what Rocky remembers.</p></div></div>
         <div className="setting-row">
           <div><strong>Use approved memories</strong><span>When off, saved memories stay stored but are not included in AI requests or suggestion generation.</span></div>
           <PreferenceToggle checked={memoryEnabled} onChange={(enabled) => void saveMemoryPreference(enabled)} label="Use approved memories" disabled={memoryPreferenceLoading} />
@@ -157,10 +178,10 @@ export default function SettingsPage() {
         </Link>
         <div className="setting-row">
           <div><strong>Delete all saved memories</strong><span>{cleared ? "All saved memories were deleted." : "Permanently remove every saved memory for this browser."}</span></div>
-          <button className="text-button" disabled={isClearingMemories} onClick={() => void handleClearMemories()}>{isClearingMemories ? "Deleting…" : cleared ? "Delete again" : "Delete all"}</button>
+          <Button variant="destructive" size="sm" disabled={isClearingMemories} onClick={() => void handleClearMemories()}>{isClearingMemories ? "Deleting…" : cleared ? "Delete again" : "Delete all"}</Button>
         </div>
-        <div className="privacy-callout"><ShieldCheck size={16} /><p>Approved memories and this preference are stored in Neon. Memory use is off when disabled. This app has no sign-in yet, so the HttpOnly browser cookie scopes access; it is not account authentication or cross-device isolation.</p></div>
-      </section>
+        <Card className="privacy-callout gap-0 ring-0"><ShieldCheck size={16} /><p>Approved memories and this preference are stored in Neon. Memory use is off when disabled. This app has no sign-in yet, so the HttpOnly browser cookie scopes access; it is not account authentication or cross-device isolation.</p></Card>
+      </Card>
       <div className="settings-footer"><span><Check size={14} /> Your preferences are saved in this browser</span><span>ROCKY · UI DEMO</span></div>
     </div>
   )

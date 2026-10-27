@@ -3,6 +3,15 @@
 import { useEffect, useRef, type FormEvent } from "react"
 import { ArrowUp, MessageCircle, Mic, Plus, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useChatStore } from "@/stores/chat-store"
 import { MessageBubble } from "@/components/chat/message-bubble"
 
@@ -41,7 +50,7 @@ export function ConversationPanel() {
   }
 
   return (
-    <section className="conversation-card">
+    <Card role="region" aria-label="Conversation with Rocky" className="conversation-card gap-0 py-0 ring-0">
       <div className="section-heading conversation-heading">
         <div>
           <span className="eyebrow">A THOUGHTFUL CONVERSATION</span>
@@ -49,25 +58,33 @@ export function ConversationPanel() {
         </div>
         <div className="conversation-controls">
           <label className="visually-hidden" htmlFor="conversation-select">Choose a conversation</label>
-          <select
-            id="conversation-select"
-            className="conversation-select"
-            value={conversationId ?? ""}
-            onChange={(event) => {
-              const selectedId = event.target.value
-              if (selectedId) void selectConversation(selectedId)
+          <Select
+            value={conversationId ?? "new"}
+            onValueChange={(selectedId) => {
+              if (selectedId && selectedId !== "new") void selectConversation(selectedId)
               else startNewConversation()
             }}
             disabled={isLoadingHistory || isSending || conversations.length === 0}
           >
-            <option value="">New conversation</option>
-            {conversations.map((conversation) => (
-              <option key={conversation.id} value={conversation.id}>
-                {conversation.title}
-              </option>
-            ))}
-          </select>
-          <button
+            <SelectTrigger id="conversation-select" aria-label="Choose a conversation" className="conversation-select">
+              <SelectValue>
+                {conversationId
+                  ? conversations.find((conversation) => conversation.id === conversationId)?.title ?? "Choose a conversation"
+                  : "New conversation"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="new">New conversation</SelectItem>
+              {conversations.map((conversation) => (
+                <SelectItem key={conversation.id} value={conversation.id}>
+                  {conversation.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="icon"
             className="new-chat-button"
             type="button"
             onClick={startNewConversation}
@@ -76,7 +93,7 @@ export function ConversationPanel() {
             title="Start a new conversation"
           >
             <Plus size={15} />
-          </button>
+          </Button>
         </div>
       </div>
       <div className="message-list" aria-live="polite">
@@ -104,7 +121,9 @@ export function ConversationPanel() {
       {historyError && (
         <div className="chat-history-error" role="alert">
           <span>{historyError}</span>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             type="button"
             className="retry-button"
             onClick={() => {
@@ -113,17 +132,18 @@ export function ConversationPanel() {
             }}
           >
             <RotateCcw size={13} /> Try again
-          </button>
+          </Button>
         </div>
       )}
       {error && (
         <div className="chat-error" role="alert">
           <span>{error}</span>
-          {lastMessage && <button onClick={() => void retry()} className="retry-button"><RotateCcw size={13} /> Try again</button>}
+          {lastMessage && <Button variant="ghost" size="sm" onClick={() => void retry()} className="retry-button"><RotateCcw size={13} /> Try again</Button>}
         </div>
       )}
       <form className="composer" onSubmit={onSubmit}>
-        <input
+        <Input
+          className="h-auto border-0 bg-transparent px-0 py-0 text-[13px] shadow-none focus-visible:border-0 focus-visible:ring-0"
           aria-label="Message Rocky"
           name="message"
           placeholder="Write what’s on your mind…"
@@ -131,14 +151,14 @@ export function ConversationPanel() {
           autoComplete="off"
           disabled={isSending || isLoadingHistory}
         />
-        <button className="composer-mic" type="button" aria-label="Voice input not available" title="Voice input is not connected">
+        <Button variant="ghost" size="icon" className="composer-mic" type="button" aria-label="Voice input not available" title="Voice input is not connected">
           <Mic size={17} />
-        </button>
+        </Button>
         <Button className="send-button" type="submit" disabled={isSending || isLoadingHistory} aria-label="Send message">
           <ArrowUp size={18} />
         </Button>
       </form>
       <p className="composer-note">Chat history is saved for this browser.</p>
-    </section>
+    </Card>
   )
 }

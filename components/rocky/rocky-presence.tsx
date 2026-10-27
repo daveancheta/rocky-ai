@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Camera, Maximize2, Mic, Minimize2, Pause, Play, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { useRockyStore } from "@/stores/rocky-store"
 
@@ -107,12 +108,14 @@ export function RockyPresence() {
   )
 
   return (
-    <section className={`presence-panel presence-${state}`} aria-label="ROCKY companion controls">
+    <Card role="region" className={`presence-panel presence-${state} gap-0 ring-0`} aria-label="ROCKY companion controls">
       <div className="presence-topline">
         <span className="eyebrow"><span className="status-dot" /> YOUR COMPANION</span>
         <div className="presence-top-actions">
           <span className="demo-pill"><span /> UI DEMO</span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             ref={fullscreenTriggerRef}
             type="button"
             className="icon-button fullscreen-trigger"
@@ -121,7 +124,7 @@ export function RockyPresence() {
             title="Open fullscreen"
           >
             <Maximize2 size={15} />
-          </button>
+          </Button>
         </div>
       </div>
       <div className="presence-main">
@@ -146,7 +149,9 @@ export function RockyPresence() {
           <header className="fullscreen-header">
             <span className="fullscreen-brand">rocky<span className="brand-period">.</span></span>
             <span className="fullscreen-status"><span className="status-dot" /> {stateLabels[state]}</span>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               ref={closeButtonRef}
               type="button"
               className="fullscreen-close"
@@ -156,7 +161,7 @@ export function RockyPresence() {
               <Minimize2 size={16} />
               <span>Exit fullscreen</span>
               <X className="fullscreen-close-mobile" size={17} />
-            </button>
+            </Button>
           </header>
           <main className="fullscreen-content">
             <section className="fullscreen-presence" aria-label="ROCKY visual presence">
@@ -178,6 +183,6 @@ export function RockyPresence() {
         </div>,
         document.body,
       )}
-    </section>
+    </Card>
   )
 }

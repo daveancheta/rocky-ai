@@ -7,6 +7,7 @@ import { Home, Moon, Settings, Sun, Brain } from "lucide-react"
 import { useSettingsStore } from "@/stores/settings-store"
 import type { Appearance } from "@/stores/settings-store"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 const navigation = [
   { href: "/", label: "Home", icon: Home },
@@ -67,11 +68,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="sidebar-bottom">
-          <button className="theme-control" onClick={cycleAppearance} aria-label={`Change appearance, currently ${appearance}`}>
+          <Button
+            variant="outline"
+            className="theme-control"
+            onClick={cycleAppearance}
+            aria-label={`Change appearance, currently ${appearance}`}
+          >
             {appearance === "dark" ? <Moon size={16} /> : <Sun size={16} />}
             <span>{appearance === "system" ? "System theme" : `${appearance[0].toUpperCase()}${appearance.slice(1)} theme`}</span>
             <span className="theme-switch">↗</span>
-          </button>
+          </Button>
           <div className="sidebar-note">
             <span className="status-dot" />
             <span>Here for you, always</span>
