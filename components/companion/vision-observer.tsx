@@ -128,7 +128,8 @@ export function VisionObserver({ stream, onObservation, onUnavailable }: {
       playsInline
       muted
       aria-hidden="true"
-      className="companion-camera-feed"
+      className="companion-camera-preview"
+      aria-label="Live camera preview"
     />
   )
 }
