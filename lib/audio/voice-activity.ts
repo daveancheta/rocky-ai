@@ -1,4 +1,4 @@
-export const VOICE_SILENCE_END_MS = 850
+export const VOICE_SILENCE_END_MS = 3_000
 
 const MIN_SPEECH_RMS = 0.008
 const NOISE_MULTIPLIER = 2.5

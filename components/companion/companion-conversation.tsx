@@ -127,7 +127,7 @@ export function CompanionConversation({ voiceReady }: { voiceReady: boolean }) {
   const voiceStatusCopy = voiceStatus === "requesting"
     ? "Connecting to your microphone…"
     : voiceStatus === "recording"
-      ? "Listening automatically. Pause briefly when you’re done."
+      ? "Listening automatically. Pause for 3 seconds when you’re done."
       : voiceStatus === "processing"
         ? "Finishing your thought…"
         : isSending
