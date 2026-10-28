@@ -8,7 +8,6 @@ import { useSettingsStore } from "@/stores/settings-store"
 import type { Appearance } from "@/stores/settings-store"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { RockyLogoMark } from "@/components/layout/rocky-logo"
 
 const navigation = [
   { href: "/", label: "Home", icon: Home },
@@ -48,7 +47,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-frame">
       <aside className="sidebar">
         <Link href="/" className="brand" aria-label="Rocky home">
-          <RockyLogoMark className="brand-mark" />
           <span>rocky<span className="brand-period">.</span></span>
         </Link>
         <span className="sidebar-label">YOUR SPACE</span>
@@ -89,7 +87,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
       <div className="mobile-header">
         <Link href="/" className="brand" aria-label="Rocky home">
-          <RockyLogoMark className="brand-mark" />
           <span>rocky<span className="brand-period">.</span></span>
         </Link>
         <span className="mobile-status"><span className="status-dot" /> Demo mode</span>

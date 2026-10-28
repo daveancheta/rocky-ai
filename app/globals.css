@@ -103,7 +103,6 @@
   width: 236px; padding: 31px 18px 22px; background: var(--card); border-right: 1px solid var(--border);
 }
 .brand { display: inline-flex; align-items: center; gap: 9px; width: fit-content; color: var(--foreground); text-decoration: none; font-size: 23px; letter-spacing: -.9px; font-weight: 600; }
-.brand-mark { width: 34px; height: 34px; flex: 0 0 auto; }
 .brand-period, .heading-period { color: var(--champagne); }
 .sidebar-label { margin: 52px 0 12px 12px; color: var(--taupe); font-size: 9px; font-weight: 700; letter-spacing: 1.55px; }
 .sidebar-nav { display: grid; gap: 5px; }
@@ -989,7 +988,6 @@
     backdrop-filter: blur(12px);
   }
   .mobile-header .brand { font-size: 21px; }
-  .mobile-header .brand-mark { width: 30px; height: 30px; }
   .mobile-status { display: inline-flex; align-items: center; gap: 8px; color: var(--taupe); font-size: 10px; }
   .mobile-status .status-dot { width: 6px; height: 6px; }
   .mobile-nav {
