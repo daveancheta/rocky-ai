@@ -11,6 +11,7 @@ import {
   Check,
   BrainCircuit,
   ShieldCheck,
+  Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -333,14 +334,14 @@ export default function MemoriesPage() {
   }
 
   return (
-    <div className="page memories-page space-y-6">
-      <header className="mb-0 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
-        <div>
-          <Badge variant="outline" className="mb-3">YOUR PERSONAL CONTEXT</Badge>
+    <div className="page memories-page space-y-8">
+      <header className="memories-hero mb-0 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
+        <div className="max-w-2xl">
+          <Badge variant="outline" className="memory-eyebrow mb-3">YOUR PERSONAL CONTEXT</Badge>
           <h1 className="m-0 text-4xl font-medium tracking-tight sm:text-5xl">
             Memories<span className="heading-period">.</span>
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             Review and manage the details you choose to let Rocky remember.
           </p>
         </div>
@@ -358,8 +359,8 @@ export default function MemoriesPage() {
         </Button>
       </header>
 
-      <Card className="flex-row items-center gap-4 border-accent/30 bg-accent/5 p-4 shadow-none">
-        <div className="mt-0.5 rounded-lg bg-accent/15 p-2 text-accent-foreground">
+      <Card className="memory-privacy flex-row items-center gap-4 border-accent/30 bg-accent/5 p-4 shadow-none">
+        <div className="memory-privacy-icon mt-0.5 rounded-xl bg-accent/15 p-2.5 text-accent-foreground">
           <ShieldCheck size={18} />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
@@ -380,25 +381,25 @@ export default function MemoriesPage() {
       )}
       {!memoryEnabled && <Card role="status" className="border-accent/30 bg-accent/5 p-4 text-sm text-muted-foreground shadow-none">Memory is off. Turn it on in Settings before adding or suggesting memories. You can still review, edit, and delete saved memories.</Card>}
 
-      <Card>
-        <CardHeader>
+      <Card className="memory-feature-card">
+        <CardHeader className="gap-3">
           <Badge variant="secondary" className="w-fit">People</Badge>
-          <CardTitle className="pt-2">Main person or character</CardTitle>
+          <CardTitle className="text-xl">Main person or character</CardTitle>
           <CardDescription>
             Save one person, yourself, or a fictional character ROCKY should remember in conversation. This profile helps with names and context; ROCKY will not use it to identify anyone from camera images. Keep details non-sensitive and only save information you approve.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {mainPersonMemory && !isEditingMainPerson ? (
-            <div className="space-y-3">
-              {savedMainPersonImageUrl && <Image src={savedMainPersonImageUrl} alt={`Saved profile image for ${mainPersonFields.name || "the main person or character"}`} width={128} height={128} unoptimized className="size-32 rounded-xl border object-cover" />}
+            <div className="memory-profile-summary">
+              {savedMainPersonImageUrl ? <Image src={savedMainPersonImageUrl} alt={`Saved profile image for ${mainPersonFields.name || "the main person or character"}`} width={128} height={128} unoptimized className="memory-profile-image size-32 rounded-2xl border object-cover" /> : <div className="memory-profile-placeholder" aria-hidden="true"><Users size={23} /></div>}
               <div className="space-y-1">
-                <p className="font-medium">{mainPersonFields.name || "Saved person or character"}</p>
+                <p className="text-lg font-semibold tracking-tight">{mainPersonFields.name || "Saved person or character"}</p>
                 {mainPersonFields.role && <p className="text-sm text-muted-foreground">{mainPersonFields.role}</p>}
                 {mainPersonFields.notes && <p className="text-sm leading-relaxed text-foreground/80">{mainPersonFields.notes}</p>}
                 {mainPersonMemory && <p className="pt-2 text-xs text-muted-foreground">Saved {new Date(mainPersonMemory.createdAt).toLocaleDateString()} · Updated {new Date(mainPersonMemory.updatedAt).toLocaleDateString()}</p>}
               </div>
-              <div className="flex flex-wrap gap-2 border-t pt-3">
+              <div className="memory-profile-actions flex flex-wrap gap-2 border-t pt-4">
                 <Button type="button" variant="outline" size="sm" onClick={() => { setIsEditingMainPerson(true); setMainPersonNotice(undefined); setMainPersonError(undefined); updateSelectedImage(undefined) }}><Pencil size={14} /> Edit profile</Button>
                 {savedMainPersonImageUrl && <Button type="button" variant="ghost" size="sm" onClick={() => void handleDeleteMainPersonImage()}><Trash2 size={14} /> Remove image</Button>}
                 <Button type="button" variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => void handleDeleteMainPerson()}><Trash2 size={14} /> Delete profile</Button>
@@ -487,9 +488,9 @@ export default function MemoriesPage() {
         </Card>
       )}
 
-      <Card role="region" aria-labelledby="memory-suggestions-title">
-        <CardHeader>
-          <CardTitle id="memory-suggestions-title">Review possible memories</CardTitle>
+      <Card role="region" aria-labelledby="memory-suggestions-title" className="memory-feature-card">
+        <CardHeader className="gap-3">
+          <CardTitle id="memory-suggestions-title" className="text-xl">Review possible memories</CardTitle>
           <CardDescription>
             Ask Muse Spark to suggest stable, non-sensitive details from one conversation. Nothing is saved unless you approve it.
           </CardDescription>
@@ -551,7 +552,7 @@ export default function MemoriesPage() {
       </Card>
 
       <section className="space-y-4" aria-labelledby="saved-memories-title">
-        <div className="flex flex-col gap-4 border-b border-border/70 pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="memory-list-heading flex flex-col gap-4 border-b border-border/70 pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
             <h2 id="saved-memories-title" className="text-xl font-medium tracking-tight">Your saved memories</h2>
             <p className="text-sm text-muted-foreground">A small collection of details you’ve chosen to keep.</p>
@@ -565,7 +566,7 @@ export default function MemoriesPage() {
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by title or detail…" aria-label="Search memories" />
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter memories by category">
+          <div className="memory-filter-list flex flex-wrap gap-2" role="group" aria-label="Filter memories by category">
             {categories.map((item) => (
               <Button type="button" variant={category === item ? "secondary" : "outline"} size="sm" key={item} onClick={() => setCategory(item)} aria-pressed={category === item}>
                 {item}
@@ -582,7 +583,7 @@ export default function MemoriesPage() {
       ) : regularVisibleMemories.length ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {regularVisibleMemories.map((memory) => (
-            <Card key={memory.id} className="transition-shadow hover:shadow-md">
+            <Card key={memory.id} className="memory-item-card transition-shadow hover:shadow-md">
               <CardHeader className="grid-cols-[1fr_auto]">
                 <Badge variant="secondary" className="w-fit">{memory.category}</Badge>
                 <CardAction className="flex gap-1">

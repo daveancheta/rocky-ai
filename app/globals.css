@@ -1083,3 +1083,32 @@
   .context-card { padding: 9px; }
   .context-detail { align-items: flex-start; }
 }
+
+/* Memories page: clearer hierarchy while staying within ROCKY's existing palette. */
+.memories-page { max-width: 1080px; }
+.memories-hero { padding: 4px 0 8px; }
+.memory-eyebrow { letter-spacing: .12em; font-size: 10px; }
+.memories-page [data-slot="card"] { border-radius: 16px; }
+.memory-privacy { border-radius: 14px !important; }
+.memory-privacy-icon { display: grid; flex: 0 0 auto; place-items: center; }
+.memory-feature-card > [data-slot="card-header"] { padding-bottom: 16px; }
+.memory-profile-summary { display: flex; align-items: flex-start; gap: 20px; }
+.memory-profile-image, .memory-profile-placeholder { flex: 0 0 auto; }
+.memory-profile-placeholder {
+  display: grid; width: 96px; height: 96px; place-items: center; border: 1px solid #f0d7c5;
+  border-radius: 16px; color: #a74410; background: #fff7f1;
+}
+.memory-profile-summary > div:last-child { padding-top: 4px; }
+.memory-profile-actions { margin-top: 18px; }
+.memory-list-heading { border-color: color-mix(in srgb, var(--border) 70%, transparent); }
+.memory-filter-list { overflow-x: auto; padding: 1px 0 3px; }
+.memory-item-card { min-width: 0; }
+.memory-item-card [data-slot="card-description"] { overflow-wrap: anywhere; }
+:root:not(.dark) .memories-page [data-slot="card"] { box-shadow: 0 5px 18px rgb(54 41 29 / 4%); }
+.dark .memory-profile-placeholder { border-color: #62432f; color: #ffad7c; background: #39291f; }
+.dark .memories-page [data-slot="card"] { box-shadow: 0 5px 18px rgb(0 0 0 / 12%); }
+@media (max-width: 520px) {
+  .memory-profile-summary { gap: 14px; }
+  .memory-profile-image { width: 80px; height: 80px; }
+  .memory-profile-placeholder { width: 80px; height: 80px; }
+}
