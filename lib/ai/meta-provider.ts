@@ -305,6 +305,7 @@ function parseSamBoundingBoxes(outputText: string): VisionBoundingBox[] {
 export async function analyzeImageWithMeta(options: {
   image: Uint8Array
   contentType: SupportedVisionImageType
+  referenceImage?: { image: Uint8Array; contentType: SupportedVisionImageType }
   prompt: string
   task: "understanding" | "segmentation"
   signal?: AbortSignal
@@ -316,6 +317,9 @@ export async function analyzeImageWithMeta(options: {
 
   const model = options.task === "segmentation" ? "sam-3.1" : MUSE_SPARK_MODEL
   const imageUrl = `data:${options.contentType};base64,${Buffer.from(options.image).toString("base64")}`
+  const referenceImageUrl = options.referenceImage
+    ? `data:${options.referenceImage.contentType};base64,${Buffer.from(options.referenceImage.image).toString("base64")}`
+    : undefined
   const requestBody = {
     model,
     input: [
@@ -325,6 +329,7 @@ export async function analyzeImageWithMeta(options: {
         content: [
           { type: "input_text", text: options.prompt },
           { type: "input_image", image_url: imageUrl },
+          ...(referenceImageUrl ? [{ type: "input_image" as const, image_url: referenceImageUrl }] : []),
         ],
       },
     ],
@@ -332,7 +337,9 @@ export async function analyzeImageWithMeta(options: {
       ? { metadata: { mask_encoding: "one_bit" } }
       : {
           instructions:
-            "Answer only from what is directly visible in the image. Do not identify people or infer their identity, emotions, intentions, health, or other private attributes. Describe uncertainty plainly and avoid guessing.",
+            options.referenceImage
+              ? "Compare the current camera still only with the supplied reference photo of the current user. You may report a match only if the visible face is clear and strongly matches facial features in the reference; ignore clothing, background, and other incidental similarities. If the face is unclear, multiple people make the match ambiguous, or you are not highly confident, report uncertain. Never identify or match any other person. Do not infer emotions, intentions, health, or other private attributes."
+              : "Answer only from what is directly visible in the image. Do not identify people or infer their identity, emotions, intentions, health, or other private attributes. Describe uncertainty plainly and avoid guessing.",
         }),
   }
 

@@ -2,7 +2,8 @@ import { connection } from "next/server"
 import { analyzeImageWithMeta, MetaModelApiError } from "@/lib/ai/meta-provider"
 import { MAX_VISION_IMAGE_BYTES, validateVisionImage } from "@/lib/validation/image"
 
-const MAX_MULTIPART_BYTES = MAX_VISION_IMAGE_BYTES + 32 * 1024
+const MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
+const MAX_MULTIPART_BYTES = MAX_VISION_IMAGE_BYTES + MAX_REFERENCE_IMAGE_BYTES + 64 * 1024
 const MAX_UNDERSTANDING_PROMPT_CHARS = 8_000
 const MAX_SEGMENTATION_PROMPT_CHARS = 120
 
@@ -128,16 +129,20 @@ export async function POST(request: Request) {
   }
 
   const imageParts = formData.getAll("image")
+  const referenceImageParts = formData.getAll("referenceImage")
   const taskParts = formData.getAll("task")
   const promptParts = formData.getAll("prompt")
   const image = imageParts[0]
+  const referenceImage = referenceImageParts[0]
   const task = taskParts[0]
   const prompt = promptParts[0]
   if (
     imageParts.length !== 1 ||
+    referenceImageParts.length > 1 ||
     taskParts.length !== 1 ||
     promptParts.length !== 1 ||
     !(image instanceof File) ||
+    (referenceImage !== undefined && !(referenceImage instanceof File)) ||
     typeof task !== "string" ||
     typeof prompt !== "string"
   ) {
@@ -145,6 +150,9 @@ export async function POST(request: Request) {
   }
   if (task !== "understanding" && task !== "segmentation") {
     return Response.json({ error: "Choose a supported image-analysis task." }, { status: 400 })
+  }
+  if (referenceImage && task !== "understanding") {
+    return Response.json({ error: "A reference image is only supported for image understanding." }, { status: 400 })
   }
   const trimmedPrompt = prompt.trim()
   const segmentationPromptIsInvalid =
@@ -171,6 +179,9 @@ export async function POST(request: Request) {
   if (image.size > MAX_VISION_IMAGE_BYTES) {
     return Response.json({ error: "Choose an image smaller than 5 MB." }, { status: 413 })
   }
+  if (referenceImage instanceof File && referenceImage.size > MAX_REFERENCE_IMAGE_BYTES) {
+    return Response.json({ error: "The reference image must be smaller than 2 MB." }, { status: 413 })
+  }
 
   const imageBytes = new Uint8Array(await image.arrayBuffer())
   const validation = validateVisionImage(imageBytes, image.type.toLowerCase())
@@ -180,11 +191,21 @@ export async function POST(request: Request) {
       { status: validation.error.includes("smaller than 5 MB") ? 413 : 400 },
     )
   }
+  let validatedReferenceImage: { image: Uint8Array; contentType: typeof validation.contentType } | undefined
+  if (referenceImage instanceof File) {
+    const bytes = new Uint8Array(await referenceImage.arrayBuffer())
+    const referenceValidation = validateVisionImage(bytes, referenceImage.type.toLowerCase())
+    if (!referenceValidation.success) {
+      return Response.json({ error: `Invalid reference image: ${referenceValidation.error}` }, { status: 400 })
+    }
+    validatedReferenceImage = { image: bytes, contentType: referenceValidation.contentType }
+  }
 
   try {
     const result = await analyzeImageWithMeta({
       image: imageBytes,
       contentType: validation.contentType,
+      referenceImage: validatedReferenceImage,
       prompt: trimmedPrompt,
       task,
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(60_000)]),

@@ -183,7 +183,7 @@ function visualAvailabilityResponse(status: "off" | "inactive" | "waiting" | "un
     case "waiting":
       return "Camera observation is on, but I don't have a still image ready yet. Please ask me again in a moment."
     case "uncertain":
-      return "I checked a still image, but couldn't identify the scene confidently enough to tell whether your face is visible. Try improving the lighting or moving into the camera frame, then ask me again."
+      return "I couldn't get a clear look just now. Try adjusting the lighting or moving into view, and I'll take another look."
     case "error":
       return `I couldn't analyze the latest camera still${detail ? `: ${detail}` : ". Please try again shortly."}`
   }

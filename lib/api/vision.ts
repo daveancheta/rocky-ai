@@ -21,9 +21,11 @@ export function analyzeVisionImage(
   task: "understanding" | "segmentation",
   prompt: string,
   signal?: AbortSignal,
+  referenceImage?: Blob,
 ) {
   const formData = new FormData()
   formData.append("image", image, "camera-capture.jpg")
+  if (referenceImage) formData.append("referenceImage", referenceImage, "profile-reference.jpg")
   formData.append("task", task)
   formData.append("prompt", prompt)
   return apiRequest<VisionAnalysisResult>("/api/vision/analyze", {

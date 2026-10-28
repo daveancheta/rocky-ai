@@ -106,7 +106,8 @@ async function submitMessage(content: string, appendUser: boolean) {
       : undefined
     let visualError = visualAvailability === "error" ? awareness.visionError : undefined
     const age = latestObservation ? Date.now() - Date.parse(latestObservation.observedAt) : Infinity
-    const targetedQuestion = /\b(face|smil\w*|frown\w*|expression|doing|holding|typing|reading|writing|see me|see my)\b/i.test(trimmed)
+    const identityQuestion = /\b(?:recognize me|recognise me|do you know me|who am i|is that me)\b/i.test(trimmed)
+    const targetedQuestion = !identityQuestion && /\b(face|smil\w*|frown\w*|expression|doing|holding|typing|reading|writing|see me|see my)\b/i.test(trimmed)
     if (
       observationIsRelevant && latestObservation?.image && age >= 0 && age < 3 * 60_000 &&
       (!observation || targetedQuestion)

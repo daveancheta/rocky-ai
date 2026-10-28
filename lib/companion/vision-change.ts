@@ -10,6 +10,8 @@ export type VisionSnapshot = {
   summary: string
   confidence: number
   objects: VisionObject[]
+  profileMatch?: "match" | "no_match" | "uncertain"
+  profileMatchConfidence?: number
 }
 
 export type VisionChange = {
@@ -35,7 +37,8 @@ export function isUsableVisionObservation(
 }
 
 export function isVisualAwarenessQuestion(message: string) {
-  return /\b(?:what|where|which|who|how|can|could|do|did|am|is|are|describe|tell me|find|locate|show|notice)\b.{0,90}\b(?:see|visible|look|room|surroundings|environment|desk|screen|monitor|book|paper|phone|cup|mug|object|camera|image|picture|doing|activity|holding|reading|writing|typing|smil\w*|frown\w*|expression|face|scene|setup)\b/i.test(message) ||
+  return /\b(?:do you\s+(?:know|recognize|recognise)\s+me|recognize me|recognise me|who am i|is that me)\b/i.test(message) ||
+    /\b(?:what|where|which|who|how|can|could|do|did|am|is|are|describe|tell me|find|locate|show|notice)\b.{0,90}\b(?:see|visible|look|room|surroundings|environment|desk|screen|monitor|book|paper|phone|cup|mug|object|camera|image|picture|doing|activity|holding|reading|writing|typing|smil\w*|frown\w*|expression|face|scene|setup)\b/i.test(message) ||
     /\b(?:what do you see|what can you see|what(?:'s| is) around me|what am i doing|what am i holding|how do i look|where(?:'s| is| are)\b)/i.test(message)
 }
 
@@ -52,9 +55,13 @@ export function parseVisionSnapshot(output: string): VisionSnapshot | undefined 
     const value: unknown = JSON.parse(output.slice(start, end + 1))
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
     const record = value as Record<string, unknown>
+    const profileMatch = record.profileMatch
+    const profileMatchConfidence = record.profileMatchConfidence
     if (
       typeof record.summary !== "string" || !record.summary.trim() || record.summary.length > 1_200 ||
-      !confidence(record.confidence) || !Array.isArray(record.objects) || record.objects.length > 40
+      !confidence(record.confidence) || !Array.isArray(record.objects) || record.objects.length > 40 ||
+      (profileMatch !== undefined && !["match", "no_match", "uncertain"].includes(String(profileMatch))) ||
+      (profileMatchConfidence !== undefined && !confidence(profileMatchConfidence))
     ) return undefined
 
     const objects: VisionObject[] = []
@@ -68,7 +75,15 @@ export function parseVisionSnapshot(output: string): VisionSnapshot | undefined 
       ) return undefined
       objects.push({ name: item.name.trim(), location: item.location.trim(), confidence: item.confidence })
     }
-    return { summary: record.summary.trim(), confidence: record.confidence, objects }
+    return {
+      summary: record.summary.trim(),
+      confidence: record.confidence,
+      objects,
+      ...(profileMatch === "match" || profileMatch === "no_match" || profileMatch === "uncertain"
+        ? { profileMatch }
+        : {}),
+      ...(typeof profileMatchConfidence === "number" ? { profileMatchConfidence } : {}),
+    }
   } catch {
     return undefined
   }

@@ -51,7 +51,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
               : undefined
 
   return (
-    <Card className={`presence-panel presence-${status} gap-0 ring-0`} aria-label="ROCKY companion presence">
+    <Card className={`presence-panel presence-${status}${isActive ? " presence-active" : ""} gap-0 ring-0`} aria-label="ROCKY companion presence">
       <div className="presence-topline">
         <span className="eyebrow"><span className="status-dot" /> ROCKY IS HERE</span>
         <span className={`presence-awareness-status presence-status-${isActive ? status : "ready"}`} aria-live="polite">
@@ -65,6 +65,7 @@ export function RockyPresence({ onToggle, isStarting, disabled }: { onToggle: ()
           <div className="orb-ring ring-one" />
           <div className="orb-ring ring-two" />
           <div className="orb-ring ring-three" />
+          <div className="orb-sweep" />
           <div className="orb-core" />
         </div>
         <div className="presence-copy">

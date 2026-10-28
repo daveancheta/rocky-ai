@@ -425,7 +425,7 @@ export default function MemoriesPage() {
             <Badge variant="secondary" className="w-fit">People</Badge>
             <CardTitle className="text-xl">People and characters</CardTitle>
             <CardDescription className="max-w-2xl">
-              Save yourself, people, or fictional characters ROCKY should remember in conversation. Profiles help with names and context; ROCKY will not use them to identify anyone from camera images. Keep details non-sensitive and only save information you approve.
+              Save yourself, people, or fictional characters ROCKY should remember in conversation. When camera monitoring is on, ROCKY can compare your main profile photo with camera stills to recognize you. Other profiles are not used for recognition.
             </CardDescription>
           </div>
           <Button type="button" className="shrink-0" disabled={!isPreferenceLoaded || !memoryEnabled} onClick={() => {
@@ -495,7 +495,7 @@ export default function MemoriesPage() {
                 <div className="grid gap-2 text-sm font-medium sm:col-span-2">
                   <label htmlFor="main-person-image">Profile image (optional)</label>
                   <Input id="main-person-image" className="h-auto min-h-10 font-normal" type="file" accept="image/jpeg,image/png" onChange={handleMainPersonImageSelection} disabled={!isPreferenceLoaded || !memoryEnabled} />
-                  <p className="text-xs font-normal text-muted-foreground">JPEG or PNG, up to 2 MB. The photo is stored with this memory for you to review; it is not matched against camera images.</p>
+                  <p className="text-xs font-normal text-muted-foreground">JPEG or PNG, up to 2 MB. With camera monitoring on, your main profile photo and periodic camera stills are sent to Meta for matching. Use your own photo; remove it to turn off recognition.</p>
                   {(selectedMainPersonImageUrl || (mainPersonMemory && savedMainPersonImageUrls[mainPersonMemory.id])) && <Image src={selectedMainPersonImageUrl || savedMainPersonImageUrls[mainPersonMemory!.id]} alt="Preview of the person or character profile image" width={128} height={128} unoptimized className="size-32 rounded-xl border object-cover" />}
                   {mainPersonMemory && savedMainPersonImageUrls[mainPersonMemory.id] && !selectedMainPersonImage && <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => void handleDeleteMainPersonImage(mainPersonMemory.id)}><Trash2 size={14} /> Remove saved image</Button>}
                   {mainPersonImageError && <p className="text-sm font-normal text-destructive" role="alert">{mainPersonImageError}</p>}
