@@ -195,6 +195,75 @@ export async function generateWithMuseSpark(
   }
 }
 
+export async function streamWithMuseSpark(
+  request: unknown,
+  options: { signal?: AbortSignal; instructions?: string; onDelta: (delta: string) => void },
+): Promise<MuseSparkResult> {
+  const parsedRequest = validateMuseSparkInput(request)
+  if (!parsedRequest.success) throw new MetaModelApiError(parsedRequest.error)
+  const apiKey = process.env.MODEL_API_KEY
+  if (!apiKey) throw new MetaModelApiError("MODEL_API_KEY is not configured on the server.")
+  let response: Response
+  try {
+    response = await fetch(META_RESPONSES_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ model: MUSE_SPARK_MODEL, input: parsedRequest.data.input, stream: true,
+        ...(options.instructions ? { instructions: options.instructions.slice(0, 4_000) } : {}) }),
+      signal: options.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError")) throw error
+    throw new MetaModelApiError("Could not reach the Meta Model API.")
+  }
+  if (!response.ok) {
+    const body = await response.text()
+    throw new MetaModelApiError(`Meta Model API request failed with status ${response.status}.${body ? ` ${body.slice(0, 300)}` : ""}`, response.status)
+  }
+  if (!response.body) throw new MetaModelApiError("Meta Model API returned an empty stream.", response.status)
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let fullResponse: unknown
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+      buffer = buffer.replace(/\r\n/g, "\n")
+      const events = buffer.split("\n\n")
+      buffer = events.pop() ?? ""
+      for (const event of events) {
+        const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n")
+        if (!data || data === "[DONE]") continue
+        let item: Record<string, unknown>
+        try { item = JSON.parse(data) as Record<string, unknown> } catch { throw new MetaModelApiError("Meta Model API returned an invalid stream event.") }
+        if (item.type === "response.output_text.delta" && typeof item.delta === "string") options.onDelta(item.delta)
+        if (item.type === "response.completed") fullResponse = item.response
+        if (item.type === "response.failed" || item.type === "response.incomplete" || item.type === "error") {
+          const error = item.error
+          const message = typeof error === "object" && error !== null && "message" in error && typeof error.message === "string" ? error.message : "Muse Spark could not complete the response."
+          throw new MetaModelApiError(message)
+        }
+      }
+      if (done) break
+    }
+    if (buffer.trim()) {
+      const data = buffer.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n")
+      if (data && data !== "[DONE]") {
+        const item = JSON.parse(data) as Record<string, unknown>
+        if (item.type === "response.completed") fullResponse = item.response
+      }
+    }
+  } finally { reader.releaseLock() }
+  if (!fullResponse) throw new MetaModelApiError("Muse Spark stream ended without a completed response.")
+  const parsed = validateMuseSparkResponse(fullResponse)
+  if (!parsed.success) throw new MetaModelApiError(parsed.error)
+  if (parsed.data.model && parsed.data.model !== MUSE_SPARK_MODEL) throw new MetaModelApiError("Meta Model API returned a different model than requested.")
+  const outputText = parsed.data.output.filter((item) => item.type === "message").flatMap((item) => item.content ?? []).filter((item) => item.type === "output_text").map((item) => item.text ?? "").join("").trim()
+  if (!outputText) throw new MetaModelApiError("Meta Model API response contained no text output.")
+  return { id: parsed.data.id, model: parsed.data.model ?? MUSE_SPARK_MODEL, outputText }
+}
+
 export async function transcribeWithMuseVoice(
   audio: Uint8Array,
   options: { signal?: AbortSignal } = {},

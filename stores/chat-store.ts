@@ -50,8 +50,15 @@ async function submitMessage(content: string, appendUser: boolean) {
     content: trimmed,
     createdAt: new Date().toISOString(),
   }
+  const streamingMessageId = crypto.randomUUID()
+  const streamingMessage: ChatMessage = {
+    id: streamingMessageId,
+    role: "assistant",
+    content: "",
+    createdAt: new Date().toISOString(),
+  }
   useChatStore.setState((current) => ({
-    messages: appendUser ? [...current.messages, userMessage] : current.messages,
+    messages: [...(appendUser ? [...current.messages, userMessage] : current.messages), streamingMessage],
     isSending: true,
     error: undefined,
     lastMessage: trimmed,
@@ -165,7 +172,13 @@ async function submitMessage(content: string, appendUser: boolean) {
       observation,
       visualAvailability,
       visualError,
-    }, controller.signal)
+    }, controller.signal, (delta) => {
+      useChatStore.setState((current) => ({
+        messages: current.messages.map((message) => message.id === streamingMessageId
+          ? { ...message, content: message.content + delta }
+          : message),
+      }))
+    })
     if (activeRequest === controller) activeRequest = undefined
     const updatedAt = response.message.createdAt
     const summary: ConversationSummary = {
@@ -191,8 +204,11 @@ async function submitMessage(content: string, appendUser: boolean) {
         messages[lastUserMessageIndex] = response.userMessage
       }
 
+      const streamingIndex = messages.findIndex((message) => message.id === streamingMessageId)
+      if (streamingIndex >= 0) messages[streamingIndex] = response.message
+      else messages.push(response.message)
       return {
-        messages: [...messages, response.message],
+        messages,
         conversations,
         conversationId: response.conversationId,
         isSending: false,
@@ -204,10 +220,10 @@ async function submitMessage(content: string, appendUser: boolean) {
     if (activeRequest?.signal.aborted) {
       activeRequest = undefined
       useChatStore.setState((current) => {
-        if (!appendUser) return { isSending: false, error: undefined, lastMessage: undefined }
+        if (!appendUser) return { messages: current.messages.filter((message) => message.id !== streamingMessageId), isSending: false, error: undefined, lastMessage: undefined }
         const index = current.messages.findLastIndex((message) => message.role === "user" && message.content === trimmed)
         return {
-          messages: index < 0 ? current.messages : current.messages.filter((_, messageIndex) => messageIndex !== index),
+          messages: current.messages.filter((message, messageIndex) => message.id !== streamingMessageId && (index < 0 || messageIndex !== index)),
           isSending: false,
           error: undefined,
           lastMessage: undefined,
@@ -217,6 +233,7 @@ async function submitMessage(content: string, appendUser: boolean) {
     }
     activeRequest = undefined
     useChatStore.setState({
+      messages: useChatStore.getState().messages.filter((message) => message.id !== streamingMessageId),
       isSending: false,
       error: error instanceof Error ? error.message : "Something went wrong.",
     })

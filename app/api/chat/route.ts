@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { connection } from "next/server"
 import { z } from "zod"
-import { generateWithMuseSpark, MetaModelApiError } from "@/lib/ai/meta-provider"
+import { streamWithMuseSpark, MetaModelApiError } from "@/lib/ai/meta-provider"
 import { readBoundedJson } from "@/lib/api/read-json"
 import {
   conversationBelongsToSession,
@@ -218,6 +218,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const requestStartedAt = Date.now()
   await connection()
 
   const body = await readBoundedJson(request, MAX_REQUEST_BYTES)
@@ -314,36 +315,60 @@ export async function POST(request: Request) {
       visualAvailability: currentObservation ? undefined : parsed.data.visualAvailability,
       visualError: currentObservation ? undefined : parsed.data.visualError,
     })
-    const result = await generateWithMuseSpark({ input: conversation.input }, {
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(45_000)]),
-      instructions: conversation.instructions,
+    const preparedAt = Date.now()
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const send = (event: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`))
+        void (async () => {
+          const modelStartedAt = Date.now()
+          let firstTokenAt: number | undefined
+          try {
+            const result = await streamWithMuseSpark({ input: conversation.input }, {
+              signal: AbortSignal.any([request.signal, AbortSignal.timeout(45_000)]),
+              instructions: conversation.instructions,
+              onDelta(delta) {
+                firstTokenAt ??= Date.now()
+                send({ type: "delta", delta })
+              },
+            })
+            if (request.signal.aborted) return
+            if (result.outputText.length > 40_000) throw new MetaModelApiError("Muse Spark returned an unusually long response. Please try again.")
+            const persistenceStartedAt = Date.now()
+            const resolvedConversationId = conversationId ?? randomUUID()
+            const savedTurn = await saveConversationTurn({
+              sessionId,
+              conversationId: resolvedConversationId,
+              title: parsed.data.message,
+              isNewConversation: !conversationId,
+              userMessage: parsed.data.message,
+              assistantMessage: result.outputText,
+            })
+            console.info("Chat request timing", {
+              preparationMs: preparedAt - requestStartedAt,
+              modelFirstTokenMs: firstTokenAt ? firstTokenAt - modelStartedAt : null,
+              modelTotalMs: persistenceStartedAt - modelStartedAt,
+              persistenceMs: Date.now() - persistenceStartedAt,
+              totalMs: Date.now() - requestStartedAt,
+            })
+            send({ type: "done", response: {
+              conversationId: resolvedConversationId,
+              model: result.model,
+              userMessage: savedTurn.userMessage,
+              message: savedTurn.assistantMessage,
+            } })
+          } catch (error) {
+            if (request.signal.aborted) return
+            console.error("Chat stream failed", { elapsedMs: Date.now() - requestStartedAt, status: error instanceof MetaModelApiError ? error.status ?? null : null })
+            const message = error instanceof MetaModelApiError
+              ? error.status === 401 || error.status === 403 ? "Muse Spark rejected the configured API key. Check the server configuration." : error.status === 429 ? "Muse Spark is receiving too many requests. Please try again shortly." : error.status && error.status >= 500 ? "Muse Spark is temporarily unavailable. Please try again shortly." : error.message
+              : error instanceof DOMException && error.name === "TimeoutError" ? "Muse Spark is taking too long to respond. Please try again." : "Your message could not be saved. Please try again."
+            send({ type: "error", error: message })
+          } finally { controller.close() }
+        })()
+      },
     })
-    if (request.signal.aborted) return new Response(null, { status: 499 })
-    if (result.outputText.length > 40_000) {
-      console.error("Muse Spark response exceeded the allowed text length.")
-      return Response.json(
-        { error: "Muse Spark returned an unusually long response. Please try again." },
-        { status: 502 },
-      )
-    }
-
-    const resolvedConversationId = conversationId ?? randomUUID()
-    const isNewConversation = !conversationId
-    const savedTurn = await saveConversationTurn({
-      sessionId,
-      conversationId: resolvedConversationId,
-      title: parsed.data.message,
-      isNewConversation,
-      userMessage: parsed.data.message,
-      assistantMessage: result.outputText,
-    })
-
-    return Response.json({
-      conversationId: resolvedConversationId,
-      model: result.model,
-      userMessage: savedTurn.userMessage,
-      message: savedTurn.assistantMessage,
-    })
+    return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform" } })
   } catch (error) {
     if (error instanceof MetaModelApiError) {
       console.error("Muse Spark request failed.", { status: error.status ?? null })
