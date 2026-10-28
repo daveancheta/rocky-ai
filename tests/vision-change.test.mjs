@@ -3,6 +3,8 @@ import test from "node:test"
 import {
   detectVisionChanges,
   filterNewVisionChanges,
+  isUsableVisionObservation,
+  isVisualAwarenessQuestion,
   MIN_VISION_CONFIDENCE,
   parseVisionSnapshot,
 } from "../lib/companion/vision-change.ts"
@@ -23,6 +25,22 @@ test("parses structured observations and rejects uncertain or malformed output",
   assert.equal(parseVisionSnapshot("not JSON"), undefined)
   assert.equal(parseVisionSnapshot(JSON.stringify({ summary: "unclear", confidence: 0.4, objects: [] }))?.confidence, 0.4)
   assert.equal(parseVisionSnapshot(JSON.stringify({ summary: "x", confidence: 1.4, objects: [] })), undefined)
+})
+
+test("only recent, confidently parsed still-image observations are usable in chat", () => {
+  const current = snapshot([], 0.9)
+  assert.equal(isUsableVisionObservation(current, new Date(100_000).toISOString(), 101_000), true)
+  assert.equal(isUsableVisionObservation(current, new Date(0).toISOString(), 4 * 60_000), false)
+  assert.equal(isUsableVisionObservation(snapshot([], 0.5), new Date(100_000).toISOString(), 101_000), false)
+  assert.equal(isUsableVisionObservation(undefined, new Date(100_000).toISOString(), 101_000), false)
+})
+
+test("visual context is attached to visual questions, not ordinary chat", () => {
+  assert.equal(isVisualAwarenessQuestion("What do you see on my desk?"), true)
+  assert.equal(isVisualAwarenessQuestion("Am I smiling or frowning?"), true)
+  assert.equal(isVisualAwarenessQuestion("Can Rocky see me?"), true)
+  assert.equal(isVisualAwarenessQuestion("How was your day?"), false)
+  assert.equal(isVisualAwarenessQuestion("I see what you mean."), false)
 })
 
 test("detects high-confidence new objects and position changes only between successful snapshots", () => {

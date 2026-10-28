@@ -148,7 +148,7 @@ export async function evaluateProactiveMessage(input: {
   const prompt = [
     "Decide whether ROCKY should initiate one short, relevant message now or remain quiet.",
     "Use only the supplied observation, recent conversation, and approved memories. Never invent an event, task status, memory, completed action, or environmental detail.",
-    "A still-image observation is not real-time video. Do not infer emotion, identity, health, activity, or intent. If uncertain, repetitive, irrelevant, intrusive, or not useful, choose quiet.",
+    "A still-image observation is not real-time video. Do not infer true emotion, identity, health, or intent. A directly visible simple action or facial-expression cue may be mentioned cautiously, never as proof of an internal state. If uncertain, repetitive, irrelevant, intrusive, or not useful, choose quiet.",
     "When a visual change is described as possible or model-estimated, preserve that uncertainty in any message. Never turn a model confidence estimate into a confirmed fact.",
     "For a follow-up about a goal or ongoing task, ask gently; do not assume progress or completion. Never announce ordinary scene details without a clear reason.",
     "Return only JSON with shape {\"decision\":\"speak\"|\"quiet\",\"confidence\":0.0,\"message\":\"...\"}. Set confidence from 0 to 1. A speak message must be one natural sentence and no more than 240 characters. Use an empty message for quiet.",

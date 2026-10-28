@@ -3,6 +3,8 @@ import { analyzeImageWithMeta, MetaModelApiError } from "@/lib/ai/meta-provider"
 import { MAX_VISION_IMAGE_BYTES, validateVisionImage } from "@/lib/validation/image"
 
 const MAX_MULTIPART_BYTES = MAX_VISION_IMAGE_BYTES + 32 * 1024
+const MAX_UNDERSTANDING_PROMPT_CHARS = 8_000
+const MAX_SEGMENTATION_PROMPT_CHARS = 120
 
 type BoundedBodyResult =
   | { success: true; bytes: Uint8Array }
@@ -148,9 +150,12 @@ export async function POST(request: Request) {
   const segmentationPromptIsInvalid =
     task === "segmentation" &&
     (/[.!?\r\n]/.test(trimmedPrompt) || trimmedPrompt.split(/\s+/).length > 12)
+  const maxPromptLength = task === "segmentation"
+    ? MAX_SEGMENTATION_PROMPT_CHARS
+    : MAX_UNDERSTANDING_PROMPT_CHARS
   if (
     !trimmedPrompt ||
-    trimmedPrompt.length > (task === "segmentation" ? 120 : 500) ||
+    trimmedPrompt.length > maxPromptLength ||
     segmentationPromptIsInvalid
   ) {
     return Response.json(
@@ -158,7 +163,7 @@ export async function POST(request: Request) {
         error:
           task === "segmentation"
             ? "Enter one short object name or noun phrase (up to 120 characters)."
-            : "Enter an image question up to 500 characters.",
+            : `Enter an image prompt up to ${MAX_UNDERSTANDING_PROMPT_CHARS} characters.`,
       },
       { status: 400 },
     )

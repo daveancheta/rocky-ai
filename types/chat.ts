@@ -11,7 +11,9 @@ export type SendMessageInput = {
   message: string
   conversationId?: string
   personality?: "Calm" | "Friendly" | "Playful" | "Supportive"
-  observation?: { text: string; observedAt: string }
+  observation?: { text: string; observedAt: string; confidence?: number; targeted?: boolean }
+  visualAvailability?: "off" | "inactive" | "waiting" | "uncertain" | "error"
+  visualError?: string
 }
 
 export type ConversationSummary = {

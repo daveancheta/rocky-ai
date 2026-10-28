@@ -9,10 +9,13 @@ import {
 import type {
   ChatMessage,
   ConversationSummary,
+  SendMessageInput,
 } from "@/types/chat"
 import { useSettingsStore } from "@/stores/settings-store"
+import { useCompanionStore } from "@/stores/companion-store"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { analyzeVisionImage } from "@/lib/api/vision"
+import { isUsableVisionObservation, isVisualAwarenessQuestion } from "@/lib/companion/vision-change"
 
 type ChatStore = {
   messages: ChatMessage[]
@@ -57,13 +60,85 @@ async function submitMessage(content: string, appendUser: boolean) {
   try {
     const controller = new AbortController()
     activeRequest = controller
+    const observationIsRelevant = isVisualAwarenessQuestion(trimmed)
+    if (observationIsRelevant && useCompanionStore.getState().cameraActive) {
+      const awareness = useAwarenessStore.getState()
+      const usable = awareness.latestVisionObservation && isUsableVisionObservation(
+        awareness.latestVisionObservation.snapshot,
+        awareness.latestVisionObservation.observedAt,
+      )
+      if (!usable) {
+        awareness.requestVisionObservation?.()
+        const deadline = Date.now() + 12_000
+        while (Date.now() < deadline && !controller.signal.aborted) {
+          await new Promise((resolve) => window.setTimeout(resolve, 250))
+          const current = useAwarenessStore.getState()
+          const fresh = current.latestVisionObservation
+          if (fresh && isUsableVisionObservation(fresh.snapshot, fresh.observedAt)) break
+          if (current.visionStatus === "uncertain" || current.visionStatus === "error") break
+        }
+      }
+    }
+    if (controller.signal.aborted) throw new DOMException("Request cancelled.", "AbortError")
     const latestObservation = useAwarenessStore.getState().latestVisionObservation
-    let observation = latestObservation
-      ? { text: latestObservation.text, observedAt: latestObservation.observedAt }
+    const observationIsUsable = Boolean(observationIsRelevant && latestObservation && isUsableVisionObservation(
+      latestObservation.snapshot,
+      latestObservation.observedAt,
+    ))
+    let observation: SendMessageInput["observation"] = latestObservation && observationIsUsable
+      ? {
+          text: latestObservation.text,
+          observedAt: latestObservation.observedAt,
+          confidence: latestObservation.snapshot?.confidence,
+        }
       : undefined
+    const awareness = useAwarenessStore.getState()
+    let visualAvailability = observationIsRelevant && !observation
+      ? !useSettingsStore.getState().cameraMonitoring
+        ? "off" as const
+        : !useCompanionStore.getState().cameraActive
+          ? "inactive" as const
+          : awareness.visionStatus === "uncertain"
+          ? "uncertain" as const
+          : awareness.visionStatus === "error"
+            ? "error" as const
+            : "waiting" as const
+      : undefined
+    let visualError = visualAvailability === "error" ? awareness.visionError : undefined
     const age = latestObservation ? Date.now() - Date.parse(latestObservation.observedAt) : Infinity
+    const targetedQuestion = /\b(face|smil\w*|frown\w*|expression|doing|holding|typing|reading|writing|see me|see my)\b/i.test(trimmed)
+    if (
+      observationIsRelevant && latestObservation?.image && age >= 0 && age < 3 * 60_000 &&
+      (!observation || targetedQuestion)
+    ) {
+      try {
+        const result = await analyzeVisionImage(
+          latestObservation.image,
+          "understanding",
+          [
+            "Answer the user's question using only what is visibly supported by this single still image.",
+            "Be cautious. If the requested detail is unclear, say you cannot tell from this image. Do not identify people, infer feelings or sensitive attributes, or guess.",
+            `User question: ${trimmed}`,
+          ].join("\n\n"),
+          controller.signal,
+        )
+        if (result.kind === "understanding" && result.text.trim()) {
+          observation = {
+            text: result.text.trim().slice(0, 1_200),
+            observedAt: latestObservation.observedAt,
+            confidence: latestObservation.snapshot?.confidence,
+            targeted: true,
+          }
+          visualAvailability = undefined
+        }
+      } catch (error) {
+        if (controller.signal.aborted) throw error
+        visualAvailability = "error"
+        visualError = error instanceof Error ? error.message.slice(0, 240) : "Targeted still-image analysis failed."
+      }
+    }
     const locationQuestion = trimmed.match(/\b(?:where is|where are|find|locate|can you see)\s+(?:my|the|a|an)?\s*([^?.!,]{2,60})/i)
-    if (latestObservation?.image && age >= 0 && age < 5 * 60_000 && locationQuestion?.[1]) {
+    if (latestObservation?.image && observation && !observation.targeted && age >= 0 && age < 5 * 60_000 && locationQuestion?.[1]) {
       try {
         const target = locationQuestion[1].trim()
         const result = await analyzeVisionImage(latestObservation.image, "segmentation", target, controller.signal)
@@ -87,9 +162,10 @@ async function submitMessage(content: string, appendUser: boolean) {
       conversationId: state.conversationId,
       personality: useSettingsStore.getState().personality,
       observation,
+      visualAvailability,
+      visualError,
     }, controller.signal)
     if (activeRequest === controller) activeRequest = undefined
-    if (observation) useAwarenessStore.getState().clearLatestVisionObservation(observation.observedAt)
     const updatedAt = response.message.createdAt
     const summary: ConversationSummary = {
       id: response.conversationId,

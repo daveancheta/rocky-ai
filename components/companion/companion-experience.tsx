@@ -46,8 +46,28 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
     streamRef.current = null
     setStream(null)
     setCameraActive(false)
+    useAwarenessStore.getState().clearLatestVisionObservation()
     setNotice("The camera stream could not start, so camera monitoring was stopped.")
   }, [setCameraActive, setNotice])
+
+  useEffect(() => {
+    if (cameraMonitoring || !streamRef.current) return
+    stopStream(streamRef.current)
+    streamRef.current = null
+    setStream(null)
+    setCameraActive(false)
+    useAwarenessStore.getState().clearLatestVisionObservation()
+    setNotice("Camera awareness was turned off. Camera capture has stopped.")
+  }, [cameraMonitoring, setCameraActive, setNotice])
+
+  useEffect(() => {
+    if (!stream) return
+    const onTrackEnded = () => {
+      if (useCompanionStore.getState().isActive) stopUnavailableCamera()
+    }
+    stream.getTracks().forEach((track) => track.addEventListener("ended", onTrackEnded))
+    return () => stream.getTracks().forEach((track) => track.removeEventListener("ended", onTrackEnded))
+  }, [stopUnavailableCamera, stream])
 
   useEffect(() => {
     let active = true

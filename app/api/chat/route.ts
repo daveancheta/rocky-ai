@@ -19,6 +19,7 @@ import {
   saveApprovedMemory,
 } from "@/lib/memory/repository"
 import { orchestrateConversation } from "@/lib/companion/orchestrate"
+import { isVisualAwarenessQuestion } from "@/lib/companion/vision-change"
 import type { MemoryCategory } from "@/types/memory"
 
 const MAX_REQUEST_BYTES = 16 * 1024
@@ -30,7 +31,11 @@ const CHAT_REQUEST_SCHEMA = z
     observation: z.object({
       text: z.string().trim().min(1).max(8_000),
       observedAt: z.string().datetime(),
+      confidence: z.number().min(0).max(1).optional(),
+      targeted: z.boolean().optional(),
     }).strict().optional(),
+    visualAvailability: z.enum(["off", "inactive", "waiting", "uncertain", "error"]).optional(),
+    visualError: z.string().trim().max(240).optional(),
   })
   .strict()
 
@@ -168,6 +173,21 @@ function modelErrorResponse(error: MetaModelApiError) {
   )
 }
 
+function visualAvailabilityResponse(status: "off" | "inactive" | "waiting" | "uncertain" | "error", detail?: string) {
+  switch (status) {
+    case "off":
+      return "I can only answer from a camera still when camera observation is enabled in Settings and the companion session is running."
+    case "inactive":
+      return "Camera observation is not active in this companion session. Start a session with camera observation enabled, and I can check a still image."
+    case "waiting":
+      return "Camera observation is on, but I don't have a still image ready yet. Please ask me again in a moment."
+    case "uncertain":
+      return "I checked a still image, but couldn't identify the scene confidently enough to tell whether your face is visible. Try improving the lighting or moving into the camera frame, then ask me again."
+    case "error":
+      return `I couldn't analyze the latest camera still${detail ? `: ${detail}` : ". Please try again shortly."}`
+  }
+}
+
 export async function GET(request: Request) {
   await connection()
 
@@ -246,6 +266,27 @@ export async function POST(request: Request) {
         message: savedTurn.assistantMessage,
       })
     }
+    if (parsed.data.visualAvailability && isVisualAwarenessQuestion(parsed.data.message)) {
+      const resolvedConversationId = conversationId ?? randomUUID()
+      const visualResponse = visualAvailabilityResponse(
+        parsed.data.visualAvailability,
+        parsed.data.visualError,
+      )
+      const savedTurn = await saveConversationTurn({
+        sessionId,
+        conversationId: resolvedConversationId,
+        title: parsed.data.message,
+        isNewConversation: !conversationId,
+        userMessage: parsed.data.message,
+        assistantMessage: visualResponse,
+      })
+      return Response.json({
+        conversationId: resolvedConversationId,
+        model: "visual-availability",
+        userMessage: savedTurn.userMessage,
+        message: savedTurn.assistantMessage,
+      })
+    }
     let relevantMemories: Awaited<ReturnType<typeof getRelevantApprovedMemories>> = []
     try {
       relevantMemories = await getRelevantApprovedMemories(
@@ -258,14 +299,17 @@ export async function POST(request: Request) {
     const observationAge = parsed.data.observation
       ? Date.now() - Date.parse(parsed.data.observation.observedAt)
       : Number.POSITIVE_INFINITY
+    const currentObservation = parsed.data.observation && observationAge >= 0 && observationAge < 3 * 60_000
+      ? parsed.data.observation
+      : undefined
     const conversation = orchestrateConversation({
       history,
       message: parsed.data.message,
       memories: relevantMemories,
       personality: parsed.data.personality,
-      observation: parsed.data.observation && observationAge >= 0 && observationAge < 10 * 60_000
-        ? parsed.data.observation
-        : undefined,
+      observation: currentObservation,
+      visualAvailability: currentObservation ? undefined : parsed.data.visualAvailability,
+      visualError: currentObservation ? undefined : parsed.data.visualError,
     })
     const result = await generateWithMuseSpark({ input: conversation.input }, {
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(45_000)]),

@@ -19,11 +19,13 @@ type AwarenessStore = {
   visionStatus: VisionProcessingStatus
   visionLastAttemptAt?: string
   visionError?: string
+  requestVisionObservation?: () => void
   fetchObservations: (signal?: AbortSignal) => Promise<void>
   setEnabled: (enabled: boolean) => void
   setLatestVisionObservation: (text: string, image?: Blob, observedAt?: string, snapshot?: VisionSnapshot) => void
   setVisionStatus: (status: VisionProcessingStatus, attemptedAt?: string, error?: string) => void
   clearLatestVisionObservation: (observedAt?: string) => void
+  setVisionRequester: (requester?: () => void) => void
   dismiss: (id: string) => void
 }
 
@@ -45,6 +47,7 @@ export const useAwarenessStore = create<AwarenessStore>((set) => ({
   observations: sampleObservations,
   latestVisionObservation: undefined,
   visionStatus: "idle",
+  requestVisionObservation: undefined,
   fetchObservations: async (signal) => {
     set({ isLoading: true, error: undefined })
     try {
@@ -65,6 +68,7 @@ export const useAwarenessStore = create<AwarenessStore>((set) => ({
     visionError: undefined,
   }),
   setVisionStatus: (visionStatus, visionLastAttemptAt, visionError) => set({ visionStatus, visionLastAttemptAt, visionError }),
+  setVisionRequester: (requestVisionObservation) => set({ requestVisionObservation }),
   clearLatestVisionObservation: (observedAt) => set((state) =>
     !observedAt || state.latestVisionObservation?.observedAt === observedAt
       ? { latestVisionObservation: undefined, visionStatus: "idle", visionLastAttemptAt: undefined, visionError: undefined }

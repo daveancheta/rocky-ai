@@ -18,6 +18,27 @@ export type VisionChange = {
   text: string
 }
 
+export function isUsableVisionObservation(
+  snapshot: VisionSnapshot | undefined,
+  observedAt: string,
+  now = Date.now(),
+  maxAgeMs = 3 * 60_000,
+) {
+  const age = now - Date.parse(observedAt)
+  return Boolean(
+    snapshot &&
+    snapshot.confidence >= MIN_VISION_CONFIDENCE &&
+    Number.isFinite(age) &&
+    age >= 0 &&
+    age <= maxAgeMs,
+  )
+}
+
+export function isVisualAwarenessQuestion(message: string) {
+  return /\b(?:what|where|which|who|how|can|could|do|did|am|is|are|describe|tell me|find|locate|show|notice)\b.{0,90}\b(?:see|visible|look|room|surroundings|environment|desk|screen|monitor|book|paper|phone|cup|mug|object|camera|image|picture|doing|activity|holding|reading|writing|typing|smil\w*|frown\w*|expression|face|scene|setup)\b/i.test(message) ||
+    /\b(?:what do you see|what can you see|what(?:'s| is) around me|what am i doing|what am i holding|how do i look|where(?:'s| is| are)\b)/i.test(message)
+}
+
 function confidence(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1
 }
