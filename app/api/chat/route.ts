@@ -11,8 +11,15 @@ import {
   saveConversationTurn,
 } from "@/lib/chat/repository"
 import { getChatSessionId } from "@/lib/chat/session"
-import { getRelevantApprovedMemories } from "@/lib/memory/repository"
+import {
+  deleteApprovedMemory,
+  getMemoryEnabled,
+  getRelevantApprovedMemories,
+  listApprovedMemories,
+  saveApprovedMemory,
+} from "@/lib/memory/repository"
 import { orchestrateConversation } from "@/lib/companion/orchestrate"
+import type { MemoryCategory } from "@/types/memory"
 
 const MAX_REQUEST_BYTES = 16 * 1024
 const CHAT_REQUEST_SCHEMA = z
@@ -26,6 +33,96 @@ const CHAT_REQUEST_SCHEMA = z
     }).strict().optional(),
   })
   .strict()
+
+const SENSITIVE_MEMORY_CONTENT =
+  /\b(password|passcode|secret|api key|access token|token|credential|private key|recovery code|credit card|bank account|social security|ssn|passport|medical|diagnos\w*|depression|anxiety|bipolar|medication|prescription|therapy|disability|sexual|political party|religion|religious|christian|muslim|catholic|jewish|hindu|buddhist|atheist|home address|street address|phone number|email address|date of birth|financial account)\b/i
+
+function parseMemoryCommand(message: string) {
+  const remember = message.match(/^\s*(?:(?:rocky|please)\s*[,;:]?\s*)*(?:(?:can you|i want you to)\s+)?(?:please\s+)?remember(?:\s+that)?\s*[:,-]?\s*(.*?)\s*[.!?]*\s*$/i)
+  if (remember) return { kind: "remember" as const, detail: remember[1].trim() }
+
+  const recall = message.match(/\b(?:what|which) (?:do you )?remember(?: about (.+?))?[?.!]*$/i)
+    ?? message.match(/\btell me what you remember(?: about (.+?))?[?.!]*$/i)
+  if (recall) return { kind: "recall" as const, target: recall[1]?.trim() }
+
+  const forget = message.match(/^\s*(?:(?:rocky|please)\s*[,;:]?\s*)*(?:forget|remove|delete)\s+(?:the\s+)?(?:memory\s+(?:about|that)\s+)?(.+?)\s*[.!?]*\s*$/i)
+  if (forget) return { kind: "forget" as const, target: forget[1].trim() }
+  return undefined
+}
+
+const MEMORY_STOP_WORDS = new Set("about after and are for from that the this with you your my me remember".split(" "))
+
+function memoryTerms(value: string) {
+  return [...new Set((value.toLocaleLowerCase("en-US").match(/[\p{L}\p{N}]{3,}/gu) ?? []).filter((term) => !MEMORY_STOP_WORDS.has(term)))]
+}
+
+function describeMemory(detail: string) {
+  const trimmed = detail.replace(/^(?:that\s+)?(?:i\s+)?(?:want you to\s+)?/i, "").trim()
+  const category: MemoryCategory = /\b(prefer|like|love|hate|always|never|response|language|style)\b/i.test(trimmed)
+      ? "Preferences"
+      : /\b(goal|learn|study|working on|project|finish|plan to)\b/i.test(trimmed)
+        ? "Goals"
+        : /\b(need to|remind me|follow up|unfinished|still have to|every day|every week|every morning|every evening|daily|weekly|routine|habit)\b/i.test(trimmed)
+          ? "Ongoing tasks"
+          : "People"
+  const firstSentence = trimmed.split(/[.!?]/, 1)[0].trim()
+  const title = firstSentence.slice(0, 80) || "Remembered detail"
+  return { category, title, detail: trimmed.slice(0, 500) }
+}
+
+async function handleMemoryCommand(sessionId: string, message: string) {
+  const command = parseMemoryCommand(message)
+  if (!command) return undefined
+  if (!(await getMemoryEnabled(sessionId))) {
+    return "Long-term memory is off, so I can’t use or change saved memories right now. You can turn it on in Settings."
+  }
+
+  if (command.kind === "remember") {
+    if (!command.detail || /^(?:this|that|it|something)$/i.test(command.detail)) {
+      return "What would you like me to remember?"
+    }
+    if (SENSITIVE_MEMORY_CONTENT.test(command.detail)) {
+      return "I can’t save passwords, secrets, or sensitive personal information as a memory."
+    }
+    const memory = await saveApprovedMemory(sessionId, describeMemory(command.detail))
+    return `Got it. I’ll remember: ${memory.detail}`
+  }
+
+  const memories = await listApprovedMemories(sessionId)
+  if (command.kind === "recall") {
+    if (!memories.length) return "I don’t have any approved memories saved for you yet."
+    const terms = command.target ? memoryTerms(command.target) : []
+    const matchingMemories = terms.length
+      ? memories.filter((memory) => {
+          const content = `${memory.title} ${memory.detail}`.toLocaleLowerCase("en-US")
+          return terms.some((term) => content.includes(term))
+        })
+      : memories
+    if (!matchingMemories.length) return "I don’t have an approved memory saved about that."
+    const summary = matchingMemories.slice(0, 12).map((memory) => `${memory.title}: ${memory.detail}`).join("; ")
+    return `Here’s what I have saved${command.target ? ` about ${command.target}` : ""}: ${summary}${matchingMemories.length > 12 ? "; and more in your Memories page" : ""}`
+  }
+
+  if (/^(?:all|everything|all memories|all of my memories|all my memories)$/i.test(command.target)) {
+    return "For safety, I can’t delete all memories by voice. You can review and delete them in Settings."
+  }
+  const targetTerms = memoryTerms(command.target)
+  if (!targetTerms.length) return "Which saved memory would you like me to forget?"
+  const ranked = memories.map((memory) => {
+    const content = `${memory.title} ${memory.detail}`.toLocaleLowerCase("en-US")
+    const overlap = targetTerms.filter((term) => content.includes(term)).length
+    return { memory, overlap }
+  }).filter((item) => item.overlap > 0).sort((a, b) => b.overlap - a.overlap)
+  if (!ranked.length) return "I couldn’t find a saved memory matching that. You can review all memories on the Memories page."
+  if (ranked.length > 1 || targetTerms.length < 2 || ranked[0].overlap < targetTerms.length) {
+    const choices = ranked.slice(0, 3).map(({ memory }) => memory.title).join(", ")
+    return ranked.length > 1
+      ? `I found a few possible memories: ${choices}. Which one should I forget?`
+      : `Did you mean “${choices}”? Please name the memory you want me to forget.`
+  }
+  const deleted = await deleteApprovedMemory(sessionId, ranked[0].memory.id)
+  return deleted ? `Done. I deleted the memory “${ranked[0].memory.title}”.` : "I couldn’t delete that memory. Please try again."
+}
 
 function modelErrorResponse(error: MetaModelApiError) {
   if (!error.status) {
@@ -122,6 +219,33 @@ export async function POST(request: Request) {
     const history = conversationId
       ? await getConversationHistory(conversationId)
       : []
+    let memoryCommandResponse: string | undefined
+    try {
+      memoryCommandResponse = await handleMemoryCommand(sessionId, parsed.data.message)
+    } catch {
+      console.error("Memory command failed.")
+      return Response.json(
+        { error: "The memory request could not be completed. Your saved memories were not confirmed as changed." },
+        { status: 503 },
+      )
+    }
+    if (memoryCommandResponse) {
+      const resolvedConversationId = conversationId ?? randomUUID()
+      const savedTurn = await saveConversationTurn({
+        sessionId,
+        conversationId: resolvedConversationId,
+        title: parsed.data.message,
+        isNewConversation: !conversationId,
+        userMessage: parsed.data.message,
+        assistantMessage: memoryCommandResponse,
+      })
+      return Response.json({
+        conversationId: resolvedConversationId,
+        model: "memory-command",
+        userMessage: savedTurn.userMessage,
+        message: savedTurn.assistantMessage,
+      })
+    }
     let relevantMemories: Awaited<ReturnType<typeof getRelevantApprovedMemories>> = []
     try {
       relevantMemories = await getRelevantApprovedMemories(

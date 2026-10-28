@@ -192,6 +192,7 @@ export default function MemoriesPage() {
         <Button
           size="lg"
           variant={showNew ? "outline" : "default"}
+          disabled={!isPreferenceLoaded || !memoryEnabled}
           aria-expanded={showNew}
           aria-controls={showNew ? "add-memory-form" : undefined}
           className="w-full sm:w-auto"
@@ -222,6 +223,7 @@ export default function MemoriesPage() {
           {preferenceError}
         </Card>
       )}
+      {!memoryEnabled && <Card role="status" className="border-accent/30 bg-accent/5 p-4 text-sm text-muted-foreground shadow-none">Memory is off. Turn it on in Settings before adding or suggesting memories. You can still review, edit, and delete saved memories.</Card>}
 
       {showNew && (
         <Card>
@@ -364,7 +366,9 @@ export default function MemoriesPage() {
                 <Badge variant="secondary" className="w-fit">{memory.category}</Badge>
                 <CardAction className="flex gap-1">
                   <Button type="button" variant="ghost" size="icon-sm" onClick={() => setEditing(editing === memory.id ? undefined : memory.id)} aria-label={`Edit ${memory.title}`}><Pencil size={15} /></Button>
-                  <Button type="button" variant="ghost" size="icon-sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => void remove(memory.id).catch(() => undefined)} aria-label={`Delete ${memory.title}`}><Trash2 size={15} /></Button>
+                  <Button type="button" variant="ghost" size="icon-sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => {
+                    if (window.confirm(`Delete “${memory.title}”? This cannot be undone.`)) void remove(memory.id).catch(() => undefined)
+                  }} aria-label={`Delete ${memory.title}`}><Trash2 size={15} /></Button>
                 </CardAction>
                 {editing === memory.id ? null : (
                   <div className="col-span-2 space-y-2">

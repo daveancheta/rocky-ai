@@ -4,6 +4,7 @@ import { getChatSessionId } from "@/lib/chat/session"
 import { conversationBelongsToSession } from "@/lib/chat/repository"
 import {
   clearApprovedMemories,
+  getMemoryEnabled,
   listApprovedMemories,
   saveApprovedMemory,
 } from "@/lib/memory/repository"
@@ -39,6 +40,12 @@ export async function POST(request: Request) {
 
   try {
     const sessionId = await getChatSessionId()
+    if (!(await getMemoryEnabled(sessionId))) {
+      return Response.json(
+        { error: "Memory is disabled. Turn it on in Settings before saving memories." },
+        { status: 409 },
+      )
+    }
     if (
       parsed.data.sourceConversationId &&
       !(await conversationBelongsToSession(

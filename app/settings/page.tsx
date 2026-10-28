@@ -131,6 +131,7 @@ export default function SettingsPage() {
   }
 
   const handleClearMemories = async () => {
+    if (!window.confirm("Delete all saved memories for this browser? This cannot be undone.")) return
     setIsClearingMemories(true)
     setMemoryPreferenceError(undefined)
     try {
@@ -194,7 +195,7 @@ export default function SettingsPage() {
           <PreferenceToggle checked={speakReplies} onChange={setSpeakReplies} label="Enable voice replies" />
         </div>
         <div className="setting-row">
-          <div><strong>Automatic voice conversation</strong><span>When Companion starts, the browser asks for microphone access. ROCKY sends each spoken phrase for transcription after about one second of silence and does not retain the recording.</span></div>
+          <div><strong>Automatic voice conversation</strong><span>When Companion starts, the browser asks for microphone access. ROCKY sends each spoken phrase for transcription after 3 seconds of silence and does not retain the recording.</span></div>
           <PreferenceToggle checked={microphoneEnabled} onChange={setMicrophoneEnabled} label="Enable automatic voice conversation" />
         </div>
         <div className="setting-row voice-setting-control">
