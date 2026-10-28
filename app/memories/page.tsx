@@ -381,6 +381,22 @@ export default function MemoriesPage() {
         </Button>
       </header>
 
+      <section className="memory-overview" aria-label="Memory overview">
+        <div className="memory-overview-item">
+          <span className="memory-overview-icon"><BrainCircuit size={17} /></span>
+          <span className="memory-overview-copy"><span className="memory-overview-value">{memories.length}</span><span className="memory-overview-label">Saved memories</span></span>
+        </div>
+        <div className="memory-overview-item">
+          <span className="memory-overview-icon"><Users size={17} /></span>
+          <span className="memory-overview-copy"><span className="memory-overview-value">{mainPersonMemories.length}</span><span className="memory-overview-label">People and characters</span></span>
+        </div>
+        <div className="memory-overview-item">
+          <span className="memory-overview-icon"><ShieldCheck size={17} /></span>
+          <span className="memory-overview-copy"><span className="memory-overview-value">{memoryEnabled ? "On" : "Off"}</span><span className="memory-overview-label">Personal memory</span></span>
+          <span className={`memory-status-dot ${memoryEnabled ? "is-enabled" : "is-disabled"}`} aria-hidden="true" />
+        </div>
+      </section>
+
       <Card className="memory-privacy flex-row items-center gap-4 border-accent/30 bg-accent/5 p-4 shadow-none">
         <div className="memory-privacy-icon mt-0.5 rounded-xl bg-accent/15 p-2.5 text-accent-foreground">
           <ShieldCheck size={18} />
@@ -404,7 +420,7 @@ export default function MemoriesPage() {
       {!memoryEnabled && <Card role="status" className="border-accent/30 bg-accent/5 p-4 text-sm text-muted-foreground shadow-none">Memory is off. Turn it on in Settings before adding or suggesting memories. You can still review, edit, and delete saved memories.</Card>}
 
       <Card className="memory-feature-card">
-        <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <CardHeader className="memory-section-header gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-3">
             <Badge variant="secondary" className="w-fit">People</Badge>
             <CardTitle className="text-xl">People and characters</CardTitle>
@@ -545,7 +561,8 @@ export default function MemoriesPage() {
       )}
 
       <Card role="region" aria-labelledby="memory-suggestions-title" className="memory-feature-card">
-        <CardHeader className="gap-3">
+        <CardHeader className="memory-section-header gap-3">
+          <Badge variant="outline" className="memory-eyebrow w-fit">FROM YOUR CONVERSATIONS</Badge>
           <CardTitle id="memory-suggestions-title" className="text-xl">Review possible memories</CardTitle>
           <CardDescription>
             Ask Muse Spark to suggest stable, non-sensitive details from one conversation. Nothing is saved unless you approve it.
@@ -617,7 +634,7 @@ export default function MemoriesPage() {
             {visibleMemories.length} {visibleMemories.length === 1 ? "memory" : "memories"}
           </Badge>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="memory-toolbar flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by title or detail…" aria-label="Search memories" />
