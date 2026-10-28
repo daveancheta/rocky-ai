@@ -10,6 +10,7 @@ const MAX_RECORDING_MS = 120_000
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024
 const VAD_CALIBRATION_MS = 350
 const PREROLL_CHUNKS = 8
+const MIN_AUTOMATIC_VOICE_ACTIVITY_MS = 100
 
 type VoiceStatus = "idle" | "requesting" | "recording" | "processing"
 
@@ -32,6 +33,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void, autoLi
   const sampleChunksRef = useRef<Float32Array[]>([])
   const prerollChunksRef = useRef<Float32Array[]>([])
   const voiceDetectedRef = useRef(false)
+  const voiceActivityMsRef = useRef(0)
   const noiseFloorRef = useRef(0.002)
   const lastVoiceActivityAtRef = useRef(0)
   const automaticRecordingRef = useRef(false)
@@ -72,10 +74,21 @@ export function useVoiceInput(onTranscript: (transcript: string) => void, autoLi
   const stopRecording = useCallback(async () => {
     if (statusRef.current !== "recording") return
     actionIdRef.current += 1
+    const hasEnoughAutomaticSpeech =
+      !automaticRecordingRef.current ||
+      voiceActivityMsRef.current >= MIN_AUTOMATIC_VOICE_ACTIVITY_MS
     const samples = sampleChunksRef.current
     sampleChunksRef.current = []
     voiceDetectedRef.current = false
+    voiceActivityMsRef.current = 0
     prerollChunksRef.current = []
+    if (!hasEnoughAutomaticSpeech) {
+      releaseRecording()
+      setRecordingSeconds(0)
+      setError("")
+      changeStatus("idle")
+      return
+    }
     const sampleRate = contextRef.current?.sampleRate ?? 0
     releaseRecording()
     setRecordingSeconds(0)
@@ -131,6 +144,7 @@ export function useVoiceInput(onTranscript: (transcript: string) => void, autoLi
     sampleChunksRef.current = []
     prerollChunksRef.current = []
     voiceDetectedRef.current = false
+    voiceActivityMsRef.current = 0
     automaticRecordingRef.current = false
     releaseRecording()
     setRecordingSeconds(0)
@@ -196,11 +210,13 @@ export function useVoiceInput(onTranscript: (transcript: string) => void, autoLi
 
         const now = Date.now()
         const rms = measureAudioRms(samples)
+        const chunkDurationMs = (samples.length / context.sampleRate) * 1_000
         if (!voiceDetectedRef.current) {
           if (now - startedAtRef.current < VAD_CALIBRATION_MS) {
             noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15
           } else if (hasVoiceActivity(rms, noiseFloorRef.current)) {
             voiceDetectedRef.current = true
+            voiceActivityMsRef.current = chunkDurationMs
             lastVoiceActivityAtRef.current = now
             sampleChunksRef.current = [...prerollChunksRef.current, samples]
             prerollChunksRef.current = []
@@ -215,7 +231,10 @@ export function useVoiceInput(onTranscript: (transcript: string) => void, autoLi
         }
 
         sampleChunksRef.current.push(samples)
-        if (hasVoiceActivity(rms, noiseFloorRef.current)) lastVoiceActivityAtRef.current = now
+        if (hasVoiceActivity(rms, noiseFloorRef.current)) {
+          voiceActivityMsRef.current += chunkDurationMs
+          lastVoiceActivityAtRef.current = now
+        }
         else if (hasUtteranceEnded(true, lastVoiceActivityAtRef.current, now)) void stopRecording()
       }
       source.connect(processor)
