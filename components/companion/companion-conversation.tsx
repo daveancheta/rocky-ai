@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react"
 import Link from "next/link"
 import { LoaderCircle, Mic, VolumeX } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 import { Button } from "@/components/ui/button"
 import { useVoiceInput } from "@/components/chat/use-voice-input"
 import { useChatStore } from "@/stores/chat-store"
@@ -140,7 +141,7 @@ export function CompanionConversation({ voiceReady }: { voiceReady: boolean }) {
 
   return (
     <div className="companion-conversation" aria-label="Talk with Rocky">
-      {isActive && latestReply && <div className="companion-reply" aria-live="polite"><span>ROCKY</span><p className="companion-latest-reply">{latestReply.content}</p></div>}
+      {isActive && latestReply && <div className="companion-reply" aria-live="polite"><span>ROCKY</span><div className="companion-latest-reply"><ReactMarkdown>{latestReply.content}</ReactMarkdown></div></div>}
       {isActive && (voiceError || chatError || historyError) && <div className="companion-conversation-error" role="alert">
         <span>{voiceError || chatError || "Conversation history is unavailable; you can still start a new conversation."}</span>
         {voiceError && voiceReady && microphoneEnabled && <Button type="button" variant="ghost" size="sm" onClick={() => void startRecording()}>Retry listening</Button>}
