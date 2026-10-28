@@ -1100,6 +1100,9 @@
 }
 .memory-profile-summary > div:last-child { padding-top: 4px; }
 .memory-profile-actions { margin-top: 18px; }
+.memory-person-card { border-radius: 14px !important; }
+.memory-person-card [data-slot="card-content"] { min-width: 0; }
+.memory-people-empty { border-color: color-mix(in srgb, var(--border) 80%, transparent); }
 .memory-list-heading { border-color: color-mix(in srgb, var(--border) 70%, transparent); }
 .memory-filter-list { overflow-x: auto; padding: 1px 0 3px; }
 .memory-item-card { min-width: 0; }

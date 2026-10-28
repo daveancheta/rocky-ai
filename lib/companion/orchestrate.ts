@@ -6,7 +6,7 @@ export type CompanionContext = {
   message: string
   history: Array<{ role: "user" | "assistant"; content: string }>
   memories: Array<{ category: string; title: string; detail: string }>
-  mainPerson?: { title: string; detail: string }
+  mainPeople?: Array<{ title: string; detail: string }>
   observation?: { text: string; observedAt: string; confidence?: number; targeted?: boolean }
   visualAvailability?: "off" | "inactive" | "waiting" | "uncertain" | "error"
   visualError?: string
@@ -39,12 +39,12 @@ export function orchestrateConversation(context: CompanionContext) {
     })
   }
 
-  if (context.mainPerson) {
+  if (context.mainPeople?.length) {
     input.push({
       role: "user",
       content: [{
         type: "input_text",
-        text: `User-approved main person or character profile (conversation context only, not a camera identity match): ${JSON.stringify(context.mainPerson)}`,
+        text: `User-approved people or character profiles (conversation context only, not camera identity matches): ${JSON.stringify(context.mainPeople)}`,
       }],
     })
   }
@@ -75,7 +75,7 @@ export function orchestrateConversation(context: CompanionContext) {
   const instructions = [
     `You are ROCKY, a warm and attentive companion. Use a ${context.personality.toLowerCase()} conversational tone.`,
     "Keep continuity with recent conversation and relevant user-approved memories. Never invent memories, observations, activity, or capabilities.",
-    "Use the saved main person or character profile to understand who the user means and refer to them naturally when relevant. It is user-provided conversational context only: never claim to recognize, verify, or identify that person in a camera image, and do not match faces to the profile. If asked who appears in an image, describe only visible details without assigning a name.",
+    "Use saved people or character profiles to understand who the user means and refer to them naturally when relevant. They are user-provided conversational context only: never claim to recognize, verify, or identify anyone in a camera image, and do not match faces to profiles. If asked who appears in an image, describe only visible details without assigning a name.",
     "Visual context, when supplied, comes from a periodic still image. It is not real-time video. Answer questions about surroundings only from the current visual context, distinguish observed details from uncertainty, and do not invent what is outside the frame.",
     "You may describe simple activities only when directly supported by visible cues, and should say 'appears to' when uncertain. You may describe a clearly visible facial-expression cue such as an apparent smile, but never claim or infer the person's true emotional state. Do not identify people or infer health, intent, or sensitive attributes. If a user asks what you see and no current visual context is supplied, say you do not have a current still-image observation to answer from.",
     "Do not narrate every visible object. Be concise, natural, and comfortable with silence.",

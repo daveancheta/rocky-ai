@@ -289,7 +289,7 @@ export async function POST(request: Request) {
       })
     }
     let relevantMemories: Awaited<ReturnType<typeof getRelevantApprovedMemories>> = []
-    let mainPerson: Awaited<ReturnType<typeof getMainPersonMemory>> = undefined
+    let mainPerson: Awaited<ReturnType<typeof getMainPersonMemory>> = []
     try {
       [relevantMemories, mainPerson] = await Promise.all([
         getRelevantApprovedMemories(sessionId, parsed.data.message),
@@ -308,7 +308,7 @@ export async function POST(request: Request) {
       history,
       message: parsed.data.message,
       memories: relevantMemories,
-      mainPerson: mainPerson ? { title: mainPerson.title, detail: mainPerson.detail } : undefined,
+      mainPeople: mainPerson.slice(0, 5).map(({ title, detail }) => ({ title, detail })),
       personality: parsed.data.personality,
       observation: currentObservation,
       visualAvailability: currentObservation ? undefined : parsed.data.visualAvailability,

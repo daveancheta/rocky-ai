@@ -51,11 +51,20 @@ async function readBoundedBody(request: Request): Promise<BodyResult> {
   return { success: true, bytes }
 }
 
-export async function GET() {
+function requestedMemoryId(request: Request) {
+  const memoryId = new URL(request.url).searchParams.get("memoryId")
+  return memoryId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(memoryId)
+    ? memoryId
+    : undefined
+}
+
+export async function GET(request: Request) {
   await connection()
+  const memoryId = requestedMemoryId(request)
+  if (!memoryId) return Response.json({ error: "A valid profile ID is required." }, { status: 400 })
   try {
     const sessionId = await getChatSessionId()
-    const image = await getMainPersonImage(sessionId)
+    const image = await getMainPersonImage(sessionId, memoryId)
     if (!image) return Response.json({ error: "No saved profile image." }, { status: 404 })
     const bytes = Buffer.from(image.imageBase64, "base64")
     return new Response(bytes, {
@@ -75,6 +84,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   await connection()
+  const memoryId = requestedMemoryId(request)
+  if (!memoryId) return Response.json({ error: "A valid profile ID is required." }, { status: 400 })
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("multipart/form-data;")) {
     return Response.json({ error: "Send the profile image as multipart form data." }, { status: 400 })
   }
@@ -109,7 +120,7 @@ export async function POST(request: Request) {
     if (!(await getMemoryEnabled(sessionId))) {
       return Response.json({ error: "Memory is disabled. Turn it on in Settings before saving an image." }, { status: 409 })
     }
-    const saved = await saveMainPersonImage(sessionId, validation.contentType, bytes)
+    const saved = await saveMainPersonImage(sessionId, memoryId, validation.contentType, bytes)
     if (!saved) return Response.json({ error: "Save the main person or character profile before adding its image." }, { status: 404 })
     return Response.json({ saved: true })
   } catch {
@@ -118,11 +129,13 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   await connection()
+  const memoryId = requestedMemoryId(request)
+  if (!memoryId) return Response.json({ error: "A valid profile ID is required." }, { status: 400 })
   try {
     const sessionId = await getChatSessionId()
-    const deleted = await deleteMainPersonImage(sessionId)
+    const deleted = await deleteMainPersonImage(sessionId, memoryId)
     if (!deleted) return Response.json({ error: "No saved profile image was found." }, { status: 404 })
     return new Response(null, { status: 204 })
   } catch {

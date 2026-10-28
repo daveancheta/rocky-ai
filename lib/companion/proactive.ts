@@ -125,10 +125,11 @@ export async function evaluateProactiveMessage(input: {
         ? await getRelevantApprovedMemories(input.sessionId, memoryQuery)
         : []
       const allApproved = await listApprovedMemories(input.sessionId)
-      const mainPerson = allApproved.find(isMainPersonMemory)
+      const mainPeople = allApproved.filter(isMainPersonMemory).slice(0, 3)
       const followUps = allApproved.filter((memory) => memory.category === "Ongoing tasks" || memory.category === "Goals")
       const included = new Set(relevant.map((memory) => memory.id))
-      memories = [...(mainPerson ? [mainPerson] : []), ...relevant.filter((memory) => memory.id !== mainPerson?.id), ...followUps.filter((memory) => !included.has(memory.id) && memory.id !== mainPerson?.id)]
+      const peopleIds = new Set(mainPeople.map((memory) => memory.id))
+      memories = [...mainPeople, ...relevant.filter((memory) => !peopleIds.has(memory.id)), ...followUps.filter((memory) => !included.has(memory.id) && !peopleIds.has(memory.id))]
         .slice(0, 5)
         .map(({ category, title, detail }) => ({ category, title, detail }))
     }

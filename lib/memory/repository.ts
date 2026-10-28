@@ -3,7 +3,7 @@ import "server-only"
 import { and, desc, eq } from "drizzle-orm"
 import { getDb } from "@/lib/db"
 import { mainPersonImages, memories, memoryPreferences } from "@/lib/db/schema"
-import { MAIN_PERSON_MEMORY_TITLE, type Memory, type MemoryCategory, type MemoryCandidate } from "@/types/memory"
+import { isMainPersonMemory, type Memory, type MemoryCategory, type MemoryCandidate } from "@/types/memory"
 
 function getTitleKey(title: string) {
   return title
@@ -45,40 +45,42 @@ export async function listApprovedMemories(sessionId: string) {
 }
 
 export async function getMainPersonMemory(sessionId: string) {
-  if (!(await getMemoryEnabled(sessionId))) return undefined
-  const [row] = await getDb()
+  if (!(await getMemoryEnabled(sessionId))) return []
+  const rows = await getDb()
     .select()
     .from(memories)
     .where(and(
       eq(memories.sessionId, sessionId),
       eq(memories.category, "People"),
-      eq(memories.titleKey, getTitleKey(MAIN_PERSON_MEMORY_TITLE)),
       eq(memories.consentStatus, "approved"),
     ))
-    .limit(1)
-  return row ? toMemory(row) : undefined
+    .orderBy(desc(memories.updatedAt))
+    .limit(100)
+  return rows.map(toMemory).filter(isMainPersonMemory).slice(0, 10)
 }
 
-async function findMainPersonMemoryId(sessionId: string) {
+async function findMainPersonMemoryId(sessionId: string, memoryId: string) {
   const [row] = await getDb()
     .select({ id: memories.id })
     .from(memories)
     .where(and(
       eq(memories.sessionId, sessionId),
+      eq(memories.id, memoryId),
       eq(memories.category, "People"),
-      eq(memories.titleKey, getTitleKey(MAIN_PERSON_MEMORY_TITLE)),
       eq(memories.consentStatus, "approved"),
     ))
     .limit(1)
-  return row?.id
+  if (!row) return undefined
+  const [memory] = await getDb().select().from(memories).where(eq(memories.id, row.id)).limit(1)
+  return memory && isMainPersonMemory(toMemory(memory)) ? row.id : undefined
 }
 
-export async function saveMainPersonImage(sessionId: string, contentType: string, bytes: Uint8Array) {
-  const memoryId = await findMainPersonMemoryId(sessionId)
-  if (!memoryId) return false
+export async function saveMainPersonImage(sessionId: string, memoryId: string, contentType: string, bytes: Uint8Array) {
+  const ownedMemoryId = await findMainPersonMemoryId(sessionId, memoryId)
+  if (!ownedMemoryId) return false
   await getDb()
     .insert(mainPersonImages)
-    .values({ memoryId, contentType, imageBase64: Buffer.from(bytes).toString("base64"), updatedAt: new Date() })
+    .values({ memoryId: ownedMemoryId, contentType, imageBase64: Buffer.from(bytes).toString("base64"), updatedAt: new Date() })
     .onConflictDoUpdate({
       target: mainPersonImages.memoryId,
       set: { contentType, imageBase64: Buffer.from(bytes).toString("base64"), updatedAt: new Date() },
@@ -86,27 +88,28 @@ export async function saveMainPersonImage(sessionId: string, contentType: string
   return true
 }
 
-export async function getMainPersonImage(sessionId: string) {
+export async function getMainPersonImage(sessionId: string, memoryId: string) {
+  if (!(await findMainPersonMemoryId(sessionId, memoryId))) return undefined
   const [row] = await getDb()
     .select({ contentType: mainPersonImages.contentType, imageBase64: mainPersonImages.imageBase64 })
     .from(mainPersonImages)
     .innerJoin(memories, eq(mainPersonImages.memoryId, memories.id))
     .where(and(
       eq(memories.sessionId, sessionId),
+      eq(memories.id, memoryId),
       eq(memories.category, "People"),
-      eq(memories.titleKey, getTitleKey(MAIN_PERSON_MEMORY_TITLE)),
       eq(memories.consentStatus, "approved"),
     ))
     .limit(1)
   return row
 }
 
-export async function deleteMainPersonImage(sessionId: string) {
-  const memoryId = await findMainPersonMemoryId(sessionId)
-  if (!memoryId) return false
+export async function deleteMainPersonImage(sessionId: string, memoryId: string) {
+  const ownedMemoryId = await findMainPersonMemoryId(sessionId, memoryId)
+  if (!ownedMemoryId) return false
   const deleted = await getDb()
     .delete(mainPersonImages)
-    .where(eq(mainPersonImages.memoryId, memoryId))
+    .where(eq(mainPersonImages.memoryId, ownedMemoryId))
     .returning({ memoryId: mainPersonImages.memoryId })
   return deleted.length > 0
 }

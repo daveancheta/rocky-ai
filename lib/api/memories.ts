@@ -58,8 +58,8 @@ export function suggestMemories(conversationId: string) {
   })
 }
 
-export async function getMainPersonImage(signal?: AbortSignal) {
-  const response = await fetch("/api/memories/main-person/image", {
+export async function getMainPersonImage(memoryId: string, signal?: AbortSignal) {
+  const response = await fetch(`/api/memories/main-person/image?memoryId=${encodeURIComponent(memoryId)}`, {
     signal,
     cache: "no-store",
   })
@@ -79,15 +79,15 @@ export async function getMainPersonImage(signal?: AbortSignal) {
   return response.blob()
 }
 
-export function saveMainPersonImage(image: File) {
+export function saveMainPersonImage(memoryId: string, image: File) {
   const body = new FormData()
   body.append("image", image, image.name)
-  return apiRequest<{ saved: true }>("/api/memories/main-person/image", {
+  return apiRequest<{ saved: true }>(`/api/memories/main-person/image?memoryId=${encodeURIComponent(memoryId)}`, {
     method: "POST",
     body,
   })
 }
 
-export function deleteMainPersonImage() {
-  return apiRequest<void>("/api/memories/main-person/image", { method: "DELETE" })
+export function deleteMainPersonImage(memoryId: string) {
+  return apiRequest<void>(`/api/memories/main-person/image?memoryId=${encodeURIComponent(memoryId)}`, { method: "DELETE" })
 }

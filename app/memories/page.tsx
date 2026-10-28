@@ -43,7 +43,7 @@ import {
 } from "@/lib/api/memories"
 import { useMemoryStore } from "@/stores/memory-store"
 import { useSettingsStore } from "@/stores/settings-store"
-import { isMainPersonMemory, MAIN_PERSON_MEMORY_TITLE, MEMORY_CATEGORIES, type MemoryCandidate, type MemoryCategory } from "@/types/memory"
+import { isMainPersonMemory, personProfileTitle, MEMORY_CATEGORIES, type MemoryCandidate, type MemoryCategory } from "@/types/memory"
 import type { ConversationSummary } from "@/types/chat"
 
 const categories: Array<MemoryCategory | "All"> = [
@@ -78,11 +78,11 @@ export default function MemoriesPage() {
   const [mainPersonNotice, setMainPersonNotice] = useState<string | undefined>(undefined)
   const [mainPersonError, setMainPersonError] = useState<string | undefined>(undefined)
   const [isEditingMainPerson, setIsEditingMainPerson] = useState(false)
+  const [editingMainPersonId, setEditingMainPersonId] = useState<string | undefined>(undefined)
   const [selectedMainPersonImage, setSelectedMainPersonImageFile] = useState<File | undefined>(undefined)
   const [selectedMainPersonImageUrl, setSelectedMainPersonImageUrl] = useState<string | undefined>(undefined)
-  const [savedMainPersonImageUrl, setSavedMainPersonImageUrl] = useState<string | undefined>(undefined)
+  const [savedMainPersonImageUrls, setSavedMainPersonImageUrls] = useState<Record<string, string>>({})
   const [mainPersonImageError, setMainPersonImageError] = useState<string | undefined>(undefined)
-  const savedImageUrlRef = useRef<string | undefined>(undefined)
   const selectedImageUrlRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
@@ -121,8 +121,8 @@ export default function MemoriesPage() {
     const searchText = `${memory.title} ${memory.detail} ${memory.category}`.toLowerCase()
     return matchesCategory && searchText.includes(query.toLowerCase())
   }), [category, memories, query])
-  const mainPersonMemory = memories.find(isMainPersonMemory)
-  const mainPersonMemoryId = mainPersonMemory?.id
+  const mainPersonMemories = memories.filter(isMainPersonMemory)
+  const mainPersonMemory = mainPersonMemories.find((memory) => memory.id === editingMainPersonId)
   const regularVisibleMemories = visibleMemories.filter((memory) => !isMainPersonMemory(memory))
 
   const parseMainPersonDetail = (detail: string | undefined) => {
@@ -140,11 +140,16 @@ export default function MemoriesPage() {
   }
   const mainPersonFields = parseMainPersonDetail(mainPersonMemory?.detail)
 
-  const replaceSavedImagePreview = useCallback((blob?: Blob) => {
-    if (savedImageUrlRef.current) URL.revokeObjectURL(savedImageUrlRef.current)
+  const replaceSavedImagePreview = useCallback((memoryId: string, blob?: Blob) => {
     const url = blob ? URL.createObjectURL(blob) : undefined
-    savedImageUrlRef.current = url
-    setSavedMainPersonImageUrl(url)
+    setSavedMainPersonImageUrls((current) => {
+      const previousUrl = current[memoryId]
+      if (previousUrl) URL.revokeObjectURL(previousUrl)
+      const next = { ...current }
+      if (url) next[memoryId] = url
+      else delete next[memoryId]
+      return next
+    })
   }, [])
 
   const updateSelectedImage = (file?: File) => {
@@ -155,23 +160,32 @@ export default function MemoriesPage() {
     setSelectedMainPersonImageFile(file)
   }
 
+  const profileIdsKey = mainPersonMemories.map(({ id }) => id).join(",")
   useEffect(() => {
     const controller = new AbortController()
     let active = true
-    if (!mainPersonMemoryId) return () => controller.abort()
-    void getMainPersonImage(controller.signal).then((image) => {
-      if (active) replaceSavedImagePreview(image)
-    }).catch(() => {
-      if (active) setMainPersonImageError("The saved profile image could not be loaded.")
-    })
+    const createdUrls: string[] = []
+    const profileIds = profileIdsKey ? profileIdsKey.split(",") : []
+    void Promise.all(profileIds.map(async (profileId) => {
+      try {
+        const image = await getMainPersonImage(profileId, controller.signal)
+        if (active && image) {
+          const url = URL.createObjectURL(image)
+          createdUrls.push(url)
+          setSavedMainPersonImageUrls((current) => ({ ...current, [profileId]: url }))
+        }
+      } catch {
+        if (active && !controller.signal.aborted) setMainPersonImageError("A saved profile image could not be loaded.")
+      }
+    }))
     return () => {
       active = false
       controller.abort()
+      createdUrls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [mainPersonMemoryId, replaceSavedImagePreview])
+  }, [profileIdsKey])
 
   useEffect(() => () => {
-    if (savedImageUrlRef.current) URL.revokeObjectURL(savedImageUrlRef.current)
     if (selectedImageUrlRef.current) URL.revokeObjectURL(selectedImageUrlRef.current)
   }, [])
 
@@ -216,13 +230,16 @@ export default function MemoriesPage() {
     setMainPersonNotice(undefined)
     setMainPersonImageError(undefined)
     try {
-      await create({ category: "People", title: MAIN_PERSON_MEMORY_TITLE, detail })
-      setIsEditingMainPerson(true)
+      const title = personProfileTitle(name)
+      const savedProfile = mainPersonMemory
+        ? (await update(mainPersonMemory.id, { category: "People", title, detail }), mainPersonMemory)
+        : await create({ category: "People", title, detail })
+      const profileId = savedProfile.id
       if (selectedMainPersonImage) {
         try {
-          await saveMainPersonImage(selectedMainPersonImage)
-          const savedImage = await getMainPersonImage()
-          replaceSavedImagePreview(savedImage)
+          await saveMainPersonImage(profileId, selectedMainPersonImage)
+          const savedImage = await getMainPersonImage(profileId)
+          if (savedImage) replaceSavedImagePreview(profileId, savedImage)
           updateSelectedImage(undefined)
           setMainPersonNotice("Profile and image saved. ROCKY can use the profile as conversation context.")
         } catch (error) {
@@ -234,6 +251,7 @@ export default function MemoriesPage() {
         setMainPersonNotice("Saved. ROCKY can use this profile as conversation context.")
       }
       setIsEditingMainPerson(false)
+      setEditingMainPersonId(undefined)
     } catch {
       setMainPersonError("The profile could not be saved. Please try again.")
     }
@@ -259,12 +277,12 @@ export default function MemoriesPage() {
     updateSelectedImage(file)
   }
 
-  const handleDeleteMainPersonImage = async () => {
-    if (!savedMainPersonImageUrl || !window.confirm("Remove the saved profile image?")) return
+  const handleDeleteMainPersonImage = async (memoryId: string) => {
+    if (!savedMainPersonImageUrls[memoryId] || !window.confirm("Remove the saved profile image?")) return
     setMainPersonImageError(undefined)
     try {
-      await deleteMainPersonImage()
-      replaceSavedImagePreview()
+      await deleteMainPersonImage(memoryId)
+      replaceSavedImagePreview(memoryId)
       updateSelectedImage(undefined)
       setMainPersonNotice("The profile image was removed.")
     } catch (error) {
@@ -272,15 +290,19 @@ export default function MemoriesPage() {
     }
   }
 
-  const handleDeleteMainPerson = async () => {
-    if (!mainPersonMemory || !window.confirm("Delete the saved main person or character profile? This cannot be undone.")) return
+  const handleDeleteMainPerson = async (memory: typeof memories[number]) => {
+    if (!window.confirm(`Delete ${memory.title === "Main person or character" ? "the saved person or character profile" : memory.title.replace(/^Person: /, "")} profile? This cannot be undone.`)) return
     setMainPersonError(undefined)
     setMainPersonNotice(undefined)
     try {
-      await remove(mainPersonMemory.id)
+      await remove(memory.id)
+      replaceSavedImagePreview(memory.id)
       updateSelectedImage(undefined)
-      setMainPersonNotice("The main person or character profile was deleted.")
-      setIsEditingMainPerson(false)
+      setMainPersonNotice("The person or character profile was deleted.")
+      if (editingMainPersonId === memory.id) {
+        setIsEditingMainPerson(false)
+        setEditingMainPersonId(undefined)
+      }
     } catch {
       setMainPersonError("The profile could not be deleted. Please try again.")
     }
@@ -382,35 +404,69 @@ export default function MemoriesPage() {
       {!memoryEnabled && <Card role="status" className="border-accent/30 bg-accent/5 p-4 text-sm text-muted-foreground shadow-none">Memory is off. Turn it on in Settings before adding or suggesting memories. You can still review, edit, and delete saved memories.</Card>}
 
       <Card className="memory-feature-card">
-        <CardHeader className="gap-3">
-          <Badge variant="secondary" className="w-fit">People</Badge>
-          <CardTitle className="text-xl">Main person or character</CardTitle>
-          <CardDescription>
-            Save one person, yourself, or a fictional character ROCKY should remember in conversation. This profile helps with names and context; ROCKY will not use it to identify anyone from camera images. Keep details non-sensitive and only save information you approve.
-          </CardDescription>
+        <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-3">
+            <Badge variant="secondary" className="w-fit">People</Badge>
+            <CardTitle className="text-xl">People and characters</CardTitle>
+            <CardDescription className="max-w-2xl">
+              Save yourself, people, or fictional characters ROCKY should remember in conversation. Profiles help with names and context; ROCKY will not use them to identify anyone from camera images. Keep details non-sensitive and only save information you approve.
+            </CardDescription>
+          </div>
+          <Button type="button" className="shrink-0" disabled={!isPreferenceLoaded || !memoryEnabled} onClick={() => {
+            setEditingMainPersonId(undefined)
+            setIsEditingMainPerson(true)
+            setMainPersonNotice(undefined)
+            setMainPersonError(undefined)
+            setMainPersonImageError(undefined)
+            updateSelectedImage(undefined)
+          }}><Plus size={15} /> Add a person</Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {mainPersonMemory && !isEditingMainPerson ? (
-            <div className="memory-profile-summary">
-              {savedMainPersonImageUrl ? <Image src={savedMainPersonImageUrl} alt={`Saved profile image for ${mainPersonFields.name || "the main person or character"}`} width={128} height={128} unoptimized className="memory-profile-image size-32 rounded-2xl border object-cover" /> : <div className="memory-profile-placeholder" aria-hidden="true"><Users size={23} /></div>}
-              <div className="space-y-1">
-                <p className="text-lg font-semibold tracking-tight">{mainPersonFields.name || "Saved person or character"}</p>
-                {mainPersonFields.role && <p className="text-sm text-muted-foreground">{mainPersonFields.role}</p>}
-                {mainPersonFields.notes && <p className="text-sm leading-relaxed text-foreground/80">{mainPersonFields.notes}</p>}
-                {mainPersonMemory && <p className="pt-2 text-xs text-muted-foreground">Saved {new Date(mainPersonMemory.createdAt).toLocaleDateString()} · Updated {new Date(mainPersonMemory.updatedAt).toLocaleDateString()}</p>}
-              </div>
-              <div className="memory-profile-actions flex flex-wrap gap-2 border-t pt-4">
-                <Button type="button" variant="outline" size="sm" onClick={() => { setIsEditingMainPerson(true); setMainPersonNotice(undefined); setMainPersonError(undefined); updateSelectedImage(undefined) }}><Pencil size={14} /> Edit profile</Button>
-                {savedMainPersonImageUrl && <Button type="button" variant="ghost" size="sm" onClick={() => void handleDeleteMainPersonImage()}><Trash2 size={14} /> Remove image</Button>}
-                <Button type="button" variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => void handleDeleteMainPerson()}><Trash2 size={14} /> Delete profile</Button>
-              </div>
+          {mainPersonMemories.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {mainPersonMemories.map((profile) => {
+                const fields = parseMainPersonDetail(profile.detail)
+                const imageUrl = savedMainPersonImageUrls[profile.id]
+                return <Card key={profile.id} className="memory-person-card bg-muted/20 shadow-none">
+                  <CardContent className="space-y-4 p-4">
+                    <div className="memory-profile-summary">
+                      {imageUrl ? <Image src={imageUrl} alt={`Saved profile image for ${fields.name || "person or character"}`} width={96} height={96} unoptimized className="memory-profile-image size-24 rounded-2xl border object-cover" /> : <div className="memory-profile-placeholder" aria-hidden="true"><Users size={23} /></div>}
+                      <div className="min-w-0 space-y-1">
+                        <p className="break-words text-lg font-semibold tracking-tight">{fields.name || profile.title.replace(/^Person: /, "") || "Saved person or character"}</p>
+                        {fields.role && <p className="text-sm text-muted-foreground">{fields.role}</p>}
+                        {fields.notes && <p className="line-clamp-3 text-sm leading-relaxed text-foreground/80">{fields.notes}</p>}
+                        <p className="pt-1 text-xs text-muted-foreground">Updated {new Date(profile.updatedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 border-t pt-3">
+                      <Button type="button" variant="outline" size="sm" onClick={() => {
+                        setEditingMainPersonId(profile.id)
+                        setIsEditingMainPerson(true)
+                        setMainPersonNotice(undefined)
+                        setMainPersonError(undefined)
+                        setMainPersonImageError(undefined)
+                        updateSelectedImage(undefined)
+                      }}><Pencil size={14} /> Edit</Button>
+                      {imageUrl && <Button type="button" variant="ghost" size="sm" onClick={() => void handleDeleteMainPersonImage(profile.id)}><Trash2 size={14} /> Remove image</Button>}
+                      <Button type="button" variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => void handleDeleteMainPerson(profile)}><Trash2 size={14} /> Delete</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              })}
             </div>
-          ) : (
-            <form className="grid gap-4" onSubmit={(event) => void handleSaveMainPerson(event)}>
+          ) : !isEditingMainPerson ? (
+            <div className="memory-people-empty rounded-xl border border-dashed p-6 text-center">
+              <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-accent/10 text-accent-foreground"><Users size={19} /></div>
+              <p className="text-sm font-medium">No people saved yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">Add a profile to help ROCKY remember names and context.</p>
+            </div>
+          ) : null}
+          {isEditingMainPerson && (
+            <form key={editingMainPersonId ?? "new-person-profile"} className="grid gap-4 rounded-xl border bg-card p-4 sm:p-5" onSubmit={(event) => void handleSaveMainPerson(event)}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-2 text-sm font-medium">
                   Name
-                  <Input className="h-10 font-normal" name="main-person-name" defaultValue={mainPersonFields.name} placeholder="Name or character name" maxLength={80} required disabled={!isPreferenceLoaded || !memoryEnabled} />
+                  <Input className="h-10 font-normal" name="main-person-name" defaultValue={mainPersonFields.name} placeholder="Name or character name" maxLength={72} required disabled={!isPreferenceLoaded || !memoryEnabled} />
                 </label>
                 <label className="grid gap-2 text-sm font-medium">
                   Who are they to you?
@@ -424,18 +480,18 @@ export default function MemoriesPage() {
                   <label htmlFor="main-person-image">Profile image (optional)</label>
                   <Input id="main-person-image" className="h-auto min-h-10 font-normal" type="file" accept="image/jpeg,image/png" onChange={handleMainPersonImageSelection} disabled={!isPreferenceLoaded || !memoryEnabled} />
                   <p className="text-xs font-normal text-muted-foreground">JPEG or PNG, up to 2 MB. The photo is stored with this memory for you to review; it is not matched against camera images.</p>
-                  {(selectedMainPersonImageUrl || savedMainPersonImageUrl) && <Image src={selectedMainPersonImageUrl || savedMainPersonImageUrl!} alt="Preview of the main person or character profile image" width={128} height={128} unoptimized className="size-32 rounded-xl border object-cover" />}
-                  {savedMainPersonImageUrl && !selectedMainPersonImage && <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => void handleDeleteMainPersonImage()}><Trash2 size={14} /> Remove saved image</Button>}
+                  {(selectedMainPersonImageUrl || (mainPersonMemory && savedMainPersonImageUrls[mainPersonMemory.id])) && <Image src={selectedMainPersonImageUrl || savedMainPersonImageUrls[mainPersonMemory!.id]} alt="Preview of the person or character profile image" width={128} height={128} unoptimized className="size-32 rounded-xl border object-cover" />}
+                  {mainPersonMemory && savedMainPersonImageUrls[mainPersonMemory.id] && !selectedMainPersonImage && <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => void handleDeleteMainPersonImage(mainPersonMemory.id)}><Trash2 size={14} /> Remove saved image</Button>}
                   {mainPersonImageError && <p className="text-sm font-normal text-destructive" role="alert">{mainPersonImageError}</p>}
                 </div>
               </div>
               <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Checkbox name="main-person-approval" required disabled={!isPreferenceLoaded || !memoryEnabled} />
-                  <span>I approve saving this person or character profile as a memory. I can edit or delete it later.</span>
+                  {!mainPersonMemory && <Checkbox name="main-person-approval" required disabled={!isPreferenceLoaded || !memoryEnabled} />}
+                  <span>{mainPersonMemory ? "I approve these profile updates. I can edit or delete this profile later." : "I approve saving this person or character profile as a memory. I can edit or delete it later."}</span>
                 </label>
                 <div className="flex gap-2">
-                  {mainPersonMemory && <Button type="button" variant="ghost" onClick={() => { setIsEditingMainPerson(false); updateSelectedImage(undefined); setMainPersonImageError(undefined) }}>Cancel</Button>}
+                  <Button type="button" variant="ghost" onClick={() => { setIsEditingMainPerson(false); setEditingMainPersonId(undefined); updateSelectedImage(undefined); setMainPersonImageError(undefined) }}>Cancel</Button>
                   <Button className="w-full sm:w-auto" type="submit" disabled={!isPreferenceLoaded || !memoryEnabled}><Check size={15} /> {mainPersonMemory ? "Save changes" : "Approve & save"}</Button>
                 </div>
               </div>
