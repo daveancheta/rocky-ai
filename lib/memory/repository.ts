@@ -2,8 +2,8 @@ import "server-only"
 
 import { and, desc, eq } from "drizzle-orm"
 import { getDb } from "@/lib/db"
-import { memories, memoryPreferences } from "@/lib/db/schema"
-import type { Memory, MemoryCategory, MemoryCandidate } from "@/types/memory"
+import { mainPersonImages, memories, memoryPreferences } from "@/lib/db/schema"
+import { MAIN_PERSON_MEMORY_TITLE, type Memory, type MemoryCategory, type MemoryCandidate } from "@/types/memory"
 
 function getTitleKey(title: string) {
   return title
@@ -42,6 +42,73 @@ export async function listApprovedMemories(sessionId: string) {
     .orderBy(desc(memories.updatedAt))
     .limit(100)
   return rows.map(toMemory)
+}
+
+export async function getMainPersonMemory(sessionId: string) {
+  if (!(await getMemoryEnabled(sessionId))) return undefined
+  const [row] = await getDb()
+    .select()
+    .from(memories)
+    .where(and(
+      eq(memories.sessionId, sessionId),
+      eq(memories.category, "People"),
+      eq(memories.titleKey, getTitleKey(MAIN_PERSON_MEMORY_TITLE)),
+      eq(memories.consentStatus, "approved"),
+    ))
+    .limit(1)
+  return row ? toMemory(row) : undefined
+}
+
+async function findMainPersonMemoryId(sessionId: string) {
+  const [row] = await getDb()
+    .select({ id: memories.id })
+    .from(memories)
+    .where(and(
+      eq(memories.sessionId, sessionId),
+      eq(memories.category, "People"),
+      eq(memories.titleKey, getTitleKey(MAIN_PERSON_MEMORY_TITLE)),
+      eq(memories.consentStatus, "approved"),
+    ))
+    .limit(1)
+  return row?.id
+}
+
+export async function saveMainPersonImage(sessionId: string, contentType: string, bytes: Uint8Array) {
+  const memoryId = await findMainPersonMemoryId(sessionId)
+  if (!memoryId) return false
+  await getDb()
+    .insert(mainPersonImages)
+    .values({ memoryId, contentType, imageBase64: Buffer.from(bytes).toString("base64"), updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: mainPersonImages.memoryId,
+      set: { contentType, imageBase64: Buffer.from(bytes).toString("base64"), updatedAt: new Date() },
+    })
+  return true
+}
+
+export async function getMainPersonImage(sessionId: string) {
+  const [row] = await getDb()
+    .select({ contentType: mainPersonImages.contentType, imageBase64: mainPersonImages.imageBase64 })
+    .from(mainPersonImages)
+    .innerJoin(memories, eq(mainPersonImages.memoryId, memories.id))
+    .where(and(
+      eq(memories.sessionId, sessionId),
+      eq(memories.category, "People"),
+      eq(memories.titleKey, getTitleKey(MAIN_PERSON_MEMORY_TITLE)),
+      eq(memories.consentStatus, "approved"),
+    ))
+    .limit(1)
+  return row
+}
+
+export async function deleteMainPersonImage(sessionId: string) {
+  const memoryId = await findMainPersonMemoryId(sessionId)
+  if (!memoryId) return false
+  const deleted = await getDb()
+    .delete(mainPersonImages)
+    .where(eq(mainPersonImages.memoryId, memoryId))
+    .returning({ memoryId: mainPersonImages.memoryId })
+  return deleted.length > 0
 }
 
 export async function saveApprovedMemory(

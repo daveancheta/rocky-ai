@@ -22,6 +22,7 @@ import {
   getRelevantApprovedMemories,
   listApprovedMemories,
 } from "@/lib/memory/repository"
+import { isMainPersonMemory } from "@/types/memory"
 
 const PROACTIVE_COOLDOWN_MS = 15 * 60_000
 const DUPLICATE_WINDOW_MS = 24 * 60 * 60_000
@@ -124,9 +125,10 @@ export async function evaluateProactiveMessage(input: {
         ? await getRelevantApprovedMemories(input.sessionId, memoryQuery)
         : []
       const allApproved = await listApprovedMemories(input.sessionId)
+      const mainPerson = allApproved.find(isMainPersonMemory)
       const followUps = allApproved.filter((memory) => memory.category === "Ongoing tasks" || memory.category === "Goals")
       const included = new Set(relevant.map((memory) => memory.id))
-      memories = [...relevant, ...followUps.filter((memory) => !included.has(memory.id))]
+      memories = [...(mainPerson ? [mainPerson] : []), ...relevant.filter((memory) => memory.id !== mainPerson?.id), ...followUps.filter((memory) => !included.has(memory.id) && memory.id !== mainPerson?.id)]
         .slice(0, 5)
         .map(({ category, title, detail }) => ({ category, title, detail }))
     }
@@ -149,6 +151,7 @@ export async function evaluateProactiveMessage(input: {
     "Decide whether ROCKY should initiate one short, relevant message now or remain quiet.",
     "Use only the supplied observation, recent conversation, and approved memories. Never invent an event, task status, memory, completed action, or environmental detail.",
     "A still-image observation is not real-time video. Do not infer true emotion, identity, health, or intent. A directly visible simple action or facial-expression cue may be mentioned cautiously, never as proof of an internal state. If uncertain, repetitive, irrelevant, intrusive, or not useful, choose quiet.",
+    "A saved main person or character profile is conversational context only. It can clarify who the user means in text, but it never proves or identifies who appears in a camera image. Do not match faces to saved profiles.",
     "When a visual change is described as possible or model-estimated, preserve that uncertainty in any message. Never turn a model confidence estimate into a confirmed fact.",
     "For a follow-up about a goal or ongoing task, ask gently; do not assume progress or completion. Never announce ordinary scene details without a clear reason.",
     "Return only JSON with shape {\"decision\":\"speak\"|\"quiet\",\"confidence\":0.0,\"message\":\"...\"}. Set confidence from 0 to 1. A speak message must be one natural sentence and no more than 240 characters. Use an empty message for quiet.",

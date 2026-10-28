@@ -13,6 +13,7 @@ import {
 import { getChatSessionId } from "@/lib/chat/session"
 import {
   deleteApprovedMemory,
+  getMainPersonMemory,
   getMemoryEnabled,
   getRelevantApprovedMemories,
   listApprovedMemories,
@@ -288,11 +289,12 @@ export async function POST(request: Request) {
       })
     }
     let relevantMemories: Awaited<ReturnType<typeof getRelevantApprovedMemories>> = []
+    let mainPerson: Awaited<ReturnType<typeof getMainPersonMemory>> = undefined
     try {
-      relevantMemories = await getRelevantApprovedMemories(
-        sessionId,
-        parsed.data.message,
-      )
+      [relevantMemories, mainPerson] = await Promise.all([
+        getRelevantApprovedMemories(sessionId, parsed.data.message),
+        getMainPersonMemory(sessionId),
+      ])
     } catch {
       console.error("Approved memory retrieval failed; continuing without memory context.")
     }
@@ -306,6 +308,7 @@ export async function POST(request: Request) {
       history,
       message: parsed.data.message,
       memories: relevantMemories,
+      mainPerson: mainPerson ? { title: mainPerson.title, detail: mainPerson.detail } : undefined,
       personality: parsed.data.personality,
       observation: currentObservation,
       visualAvailability: currentObservation ? undefined : parsed.data.visualAvailability,

@@ -92,6 +92,15 @@ export const memories = pgTable(
   ],
 )
 
+export const mainPersonImages = pgTable("rocky_main_person_images", {
+  memoryId: uuid("memory_id")
+    .primaryKey()
+    .references(() => memories.id, { onDelete: "cascade" }),
+  contentType: varchar("content_type", { length: 20 }).notNull(),
+  imageBase64: text("image_base64").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const memoryPreferences = pgTable("rocky_memory_preferences", {
   sessionId: uuid("session_id").primaryKey(),
   enabled: boolean("enabled").default(true).notNull(),

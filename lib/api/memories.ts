@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api/client"
+import { ApiError, apiRequest } from "@/lib/api/client"
 import type {
   Memory,
   MemoryCandidate,
@@ -56,4 +56,38 @@ export function suggestMemories(conversationId: string) {
     method: "POST",
     body: JSON.stringify({ conversationId }),
   })
+}
+
+export async function getMainPersonImage(signal?: AbortSignal) {
+  const response = await fetch("/api/memories/main-person/image", {
+    signal,
+    cache: "no-store",
+  })
+  if (response.status === 404) return undefined
+  if (!response.ok) {
+    let message = "The profile image could not be loaded."
+    try {
+      const body: unknown = await response.json()
+      if (typeof body === "object" && body !== null && "error" in body && typeof body.error === "string") {
+        message = body.error
+      }
+    } catch {
+      // Keep the generic message if the server returned no JSON error.
+    }
+    throw new ApiError(message, response.status)
+  }
+  return response.blob()
+}
+
+export function saveMainPersonImage(image: File) {
+  const body = new FormData()
+  body.append("image", image, image.name)
+  return apiRequest<{ saved: true }>("/api/memories/main-person/image", {
+    method: "POST",
+    body,
+  })
+}
+
+export function deleteMainPersonImage() {
+  return apiRequest<void>("/api/memories/main-person/image", { method: "DELETE" })
 }
