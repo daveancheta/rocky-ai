@@ -9,11 +9,12 @@ import { useThemeStore, type Appearance } from "@/stores/theme-store"
 import { AuthStore } from "@/stores/auth-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function AppShell({ children }: { children: ReactNode }) {
   const appearance = useThemeStore((state) => state.appearance)
   const setAppearance = useThemeStore((state) => state.setAppearance)
-  const { signinWithGoogle, handleGetSession, signOut, auth } = AuthStore()
+  const { signinWithGoogle, handleGetSession, signOut, auth, isLoading } = AuthStore()
 
   useEffect(() => {
     handleGetSession()
@@ -79,7 +80,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="theme-value">{appearance}</span>
               <ChevronRight className="theme-chevron" size={15} aria-hidden="true" />
             </Button>
-            {auth ? (
+            {isLoading ? (
+              <Card
+                className="sidebar-profile-card gap-0 p-2.5 ring-1"
+                role="status"
+                aria-label="Checking your account"
+                aria-busy="true"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Skeleton className="size-9 shrink-0 rounded-full" />
+                  <div className="grid min-w-0 flex-1 gap-2">
+                    <Skeleton className="h-3 w-24 max-w-full" />
+                    <Skeleton className="h-2.5 w-32 max-w-full" />
+                  </div>
+                </div>
+              </Card>
+            ) : auth ? (
               <div className="grid gap-1.5">
                 <Card className="sidebar-profile-card gap-2.5 p-2.5 ring-1" aria-label="Signed in profile">
                   <div className="flex min-w-0 items-center gap-2.5">
