@@ -3,18 +3,20 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { AlertCircle, ArrowLeft, Camera, Check, ImagePlus, Layers3, LoaderCircle, RotateCcw, ScanEye, Trash2, Upload, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, Layers3, LoaderCircle, RotateCcw, ScanEye, Search, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
   cameraAccessErrorMessage,
   requestVisualCamera,
+  searchVisualPublicInformation,
   uploadVisualAction,
   uploadVisualImage,
   validateVisualImageFile,
   VisualImageValidationError,
   type UploadProgress,
   type VisualAnalysisResponse,
+  type PublicInformationResponse,
   type VisualObjectExplanationResponse,
   type VisualSegmentationResponse,
 } from "@/lib/visual-intelligence-client"
@@ -37,6 +39,11 @@ export function VisualIntelligenceForm() {
   const [actionError, setActionError] = useState("")
   const [previewUrl, setPreviewUrl] = useState("")
   const [cameraMessage, setCameraMessage] = useState("")
+  const [publicPersonName, setPublicPersonName] = useState("")
+  const [publicInformationFocus, setPublicInformationFocus] = useState("")
+  const [publicInformation, setPublicInformation] = useState<PublicInformationResponse | null>(null)
+  const [publicInformationLoading, setPublicInformationLoading] = useState(false)
+  const [publicInformationError, setPublicInformationError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const fallbackCameraRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -73,6 +80,10 @@ export function VisualIntelligenceForm() {
     setExplanation(null)
     setActionError("")
     setObjectQuestion("")
+    setPublicPersonName("")
+    setPublicInformationFocus("")
+    setPublicInformation(null)
+    setPublicInformationError("")
     setState("idle")
     setProgress(null)
     setFile(next)
@@ -147,6 +158,8 @@ export function VisualIntelligenceForm() {
     setSelectedObjectId(null)
     setSegmentation(null)
     setExplanation(null)
+    setPublicInformation(null)
+    setPublicInformationError("")
     setActionError("")
     setProgress({ loaded: 0, total: file.size, percent: 0 })
     setState("uploading")
@@ -203,6 +216,26 @@ export function VisualIntelligenceForm() {
       setActionError(actionFailure instanceof Error ? actionFailure.message : "Rocky could not complete this object action. Try again.")
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const findPublicInformation = async () => {
+    if (!analysis || publicInformationLoading) return
+    setPublicInformationLoading(true)
+    setPublicInformationError("")
+    setPublicInformation(null)
+    try {
+      const response = await searchVisualPublicInformation({
+        category: analysis.result.category,
+        subject: analysis.result.identification,
+        ...(analysis.result.category === "person" ? { personName: publicPersonName.trim() } : {}),
+        ...(publicInformationFocus.trim() ? { focus: publicInformationFocus.trim() } : {}),
+      })
+      setPublicInformation(response)
+    } catch (searchError) {
+      setPublicInformationError(searchError instanceof Error ? searchError.message : "Public information search could not be completed. Try again.")
+    } finally {
+      setPublicInformationLoading(false)
     }
   }
 
@@ -494,6 +527,52 @@ export function VisualIntelligenceForm() {
                 </div>
               </div>
             )}
+
+            <section className="mt-5 border-t border-border pt-4" aria-labelledby="public-information-title">
+              <h3 id="public-information-title" className="mb-1 mt-0 text-sm font-semibold">Public information</h3>
+              <p className="mb-3 mt-0 text-sm leading-relaxed text-muted-foreground">Search public sources related to Rocky&apos;s visual analysis. Search results are separate from what the image itself shows.</p>
+              {analysis.result.category === "person" && (
+                <div className="mb-3 rounded-lg border border-border bg-muted/40 p-3">
+                  <label htmlFor="public-person-name" className="mb-1.5 block text-sm font-medium">Enter a name or public identifier</label>
+                  <input id="public-person-name" value={publicPersonName} maxLength={200} onChange={(event) => setPublicPersonName(event.target.value.slice(0, 200))} placeholder="Name, role, organization, or official identifier" disabled={publicInformationLoading} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
+                  <p className="mb-0 mt-2 text-xs leading-relaxed text-muted-foreground">Rocky will search only the details you enter. Search results are not matched to the person in your photo, and account verification must be checked on the linked publisher or platform.</p>
+                </div>
+              )}
+              <label htmlFor="public-information-focus" className="mb-1.5 block text-sm font-medium">What would you like to know? <span className="font-normal text-muted-foreground">(optional)</span></label>
+              <input id="public-information-focus" value={publicInformationFocus} maxLength={1000} onChange={(event) => setPublicInformationFocus(event.target.value.slice(0, 1000))} placeholder={analysis.result.category === "animal" ? "Habitat, diet, behavior, or conservation" : analysis.result.category === "product" ? "Manufacturer, purpose, or official documentation" : "History, background, or reliable references"} disabled={publicInformationLoading} className="mb-3 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
+              <Button type="button" variant="outline" disabled={publicInformationLoading || (analysis.result.category === "person" && !publicPersonName.trim())} onClick={() => void findPublicInformation()}>
+                {publicInformationLoading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
+                {publicInformationLoading ? "Searching public sources…" : publicInformationError ? "Retry public search" : "Find public information"}
+              </Button>
+              {publicInformationLoading && <p role="status" aria-live="polite" className="mb-0 mt-3 text-sm text-muted-foreground">Searching public sources. This can take a moment.</p>}
+              {publicInformationError && <p role="alert" className="mb-0 mt-3 flex items-start gap-2 text-sm text-destructive"><AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />{publicInformationError}</p>}
+              {publicInformation && (
+                <div className="mt-4 rounded-lg border border-border bg-card p-3 sm:p-4" aria-live="polite">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="m-0 text-sm font-semibold">{publicInformation.result.title}</h4>
+                    <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{publicInformation.model}</span>
+                  </div>
+                  {publicInformation.result.status === "results" && <p className="mb-3 mt-0 whitespace-pre-wrap text-sm leading-relaxed">{publicInformation.result.summary}</p>}
+                  {publicInformation.result.status === "no_results" && <p className="mb-3 mt-0 text-sm leading-relaxed text-muted-foreground">Search ran, but no useful public sources were returned. Try a more specific search focus.</p>}
+                  {publicInformation.result.status === "ambiguous" && <div className="mb-3 rounded-lg bg-muted/60 p-3"><p className="m-0 text-sm leading-relaxed">{publicInformation.result.clarificationQuestion || "Several public people may match that name. Add a profession, organization, location, or official identifier and search again."}</p></div>}
+                  {publicInformation.result.status === "unavailable" && <p className="mb-3 mt-0 text-sm leading-relaxed text-muted-foreground">Search grounding did not run, so Rocky did not retrieve or verify public information. Ask your administrator to check Meta search access.</p>}
+                  {analysis.result.category === "person" && publicInformation.result.status !== "unavailable" && <p className="mb-3 mt-0 text-xs leading-relaxed text-muted-foreground">These pages have not been matched to the person in your photo. A name or appearance alone does not verify an account or identity.</p>}
+                  {publicInformation.result.sources.length > 0 && (
+                    <div className="grid gap-2" aria-label="Public source links">
+                      {publicInformation.result.sources.map((source) => (
+                        <article key={source.url} className="rounded-lg border border-border p-3">
+                          <a href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-2 text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80">
+                            <span>{source.title}</span><ExternalLink size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                          </a>
+                          <p className="mb-0 mt-1 text-xs text-muted-foreground">{source.publisher} · {source.citationStatus === "cited_in_summary" ? "Cited in summary" : "Search result, not cited"} · Retrieved {new Date(source.retrievedAt).toLocaleString()}</p>
+                          {source.snippet && <p className="mb-0 mt-2 text-sm leading-relaxed text-muted-foreground">{source.snippet}</p>}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
           </Card>
         </>
       )}

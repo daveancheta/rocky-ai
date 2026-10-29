@@ -16,6 +16,7 @@ import {
   validateUploadedVisualImage,
   VisualUploadValidationError,
 } from "../lib/visual-intelligence-upload"
+import { createPublicInformationSearchHandler } from "../lib/public-information"
 
 function imageFile(bytes: Uint8Array, type = "image/png", name = "sample.png") {
   return new File([Uint8Array.from(bytes).buffer], name, { type })
@@ -214,4 +215,81 @@ test("endpoint explains when Muse Spark is not configured", async () => {
   assert.equal(response.status, 503)
   assert.equal(body.code, "missing_api_key")
   assert.match(body.message, /MODEL_API_KEY/)
+})
+
+test("public information endpoint requires authentication and explicit names for people", async () => {
+  let searches = 0
+  let receivedPersonName = ""
+  const provider = {
+    search: async (query: { category: string; subject: string; personName?: string }) => {
+      searches++
+      receivedPersonName = query.personName || ""
+      return {
+        requestId: "provider-r1",
+        model: "muse-spark-1.3",
+        result: {
+          status: "results" as const,
+          title: query.personName || query.subject,
+          summary: "Public sources were found.",
+          searched: true,
+          sources: [],
+          retrievedAt: new Date().toISOString(),
+        },
+      }
+    },
+  }
+  const anonymousPost = createPublicInformationSearchHandler({ getSession: async () => null, provider })
+  const anon = await anonymousPost(new Request("https://rocky.test/api/visual-intelligence/public-information", { method: "POST" }))
+  assert.equal(anon.status, 401)
+  assert.equal(searches, 0)
+
+  const post = createPublicInformationSearchHandler({ getSession: async () => ({ user: { id: "user-1" } }), provider })
+  const body = (value: unknown) => new Request("https://rocky.test/api/visual-intelligence/public-information", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://rocky.test" },
+    body: JSON.stringify(value),
+  })
+  const missingName = await post(body({ category: "person", subject: "person in photo" }))
+  assert.equal(missingName.status, 400)
+  assert.equal(searches, 0)
+  const valid = await post(body({ category: "person", subject: "person in photo", personName: "Ada Lovelace" }))
+  assert.equal(valid.status, 200)
+  assert.equal(valid.headers.get("cache-control"), "no-store")
+  assert.equal(searches, 1)
+  assert.equal(receivedPersonName, "Ada Lovelace")
+})
+
+test("public information endpoint reports missing search credentials without claiming a search", async () => {
+  const post = createPublicInformationSearchHandler({
+    getSession: async () => ({ user: { id: "user-1" } }),
+    provider: { search: async () => { throw Object.assign(new Error("no key"), { code: "missing_api_key" }) } },
+  })
+  const response = await post(new Request("https://rocky.test/api/visual-intelligence/public-information", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ category: "animal", subject: "fox" }),
+  }))
+  const result = await response.json() as { code: string; message: string }
+  assert.equal(response.status, 503)
+  assert.equal(result.code, "search_unavailable")
+  assert.match(result.message, /search access/i)
+})
+
+test("public information endpoint bounds JSON bodies and rejects malformed queries", async () => {
+  const post = createPublicInformationSearchHandler({
+    getSession: async () => ({ user: { id: "user-1" } }),
+    provider: { search: async () => { throw new Error("must not search") } },
+  })
+  const oversized = await post(new Request("https://rocky.test/api/visual-intelligence/public-information", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ category: "animal", subject: "x".repeat(9_000) }),
+  }))
+  assert.equal(oversized.status, 413)
+  const malformed = await post(new Request("https://rocky.test/api/visual-intelligence/public-information", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{bad json",
+  }))
+  assert.equal(malformed.status, 400)
 })

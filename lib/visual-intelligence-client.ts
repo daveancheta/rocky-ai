@@ -64,6 +64,27 @@ export interface VisualObjectExplanationResponse {
   answer: string
 }
 
+export interface PublicInformationResponse {
+  requestId: string
+  model: string
+  result: {
+    status: "results" | "no_results" | "ambiguous" | "unavailable"
+    title: string
+    summary: string
+    searched: boolean
+    retrievedAt: string
+    clarificationQuestion?: string
+    sources: Array<{
+      title: string
+      publisher: string
+      url: string
+      snippet?: string
+      citationStatus: "cited_in_summary" | "search_result_only"
+      retrievedAt: string
+    }>
+  }
+}
+
 export class VisualImageValidationError extends Error {
   constructor(message: string, readonly code: string) {
     super(message)
@@ -159,6 +180,83 @@ export class VisualUploadError extends Error {
   constructor(message: string, readonly status?: number, readonly code?: string) {
     super(message)
     this.name = "VisualUploadError"
+  }
+}
+
+export async function searchVisualPublicInformation(input: {
+  category: string
+  subject: string
+  personName?: string
+  focus?: string
+}): Promise<PublicInformationResponse> {
+  let response: Response
+  try {
+    response = await fetch("/api/visual-intelligence/public-information", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  } catch {
+    throw new VisualUploadError("Rocky could not reach public information search. Check your connection and retry.", 0, "network_error")
+  }
+  let payload: unknown
+  try {
+    payload = await response.json()
+  } catch {
+    throw new VisualUploadError("Rocky returned an unreadable search response. Try again.", response.status, "invalid_response")
+  }
+  const record = payload && typeof payload === "object" ? payload as Record<string, unknown> : {}
+  if (!response.ok) {
+    throw new VisualUploadError(
+      typeof record.message === "string" ? record.message : "Public information search is unavailable. Try again.",
+      response.status,
+      typeof record.code === "string" ? record.code : undefined,
+    )
+  }
+  const result = record.result as Record<string, unknown> | undefined
+  const statuses = ["results", "no_results", "ambiguous", "unavailable"]
+  if (record.success !== true || typeof record.requestId !== "string" || typeof record.model !== "string"
+    || !result || !statuses.includes(String(result.status)) || typeof result.title !== "string"
+    || typeof result.summary !== "string" || typeof result.searched !== "boolean"
+    || typeof result.retrievedAt !== "string" || !Array.isArray(result.sources)) {
+    throw new VisualUploadError("Rocky returned incomplete public information. Try again.", response.status, "invalid_response")
+  }
+  const sources = result.sources.flatMap((value) => {
+    if (!value || typeof value !== "object") return []
+    const source = value as Record<string, unknown>
+    if (typeof source.title !== "string" || typeof source.publisher !== "string"
+      || typeof source.url !== "string" || typeof source.retrievedAt !== "string"
+      || (source.citationStatus !== "cited_in_summary" && source.citationStatus !== "search_result_only")) return []
+    try {
+      const url = new URL(source.url)
+      if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return []
+      url.hash = ""
+      return [{
+        title: source.title,
+        publisher: source.publisher,
+        url: url.href,
+        ...(typeof source.snippet === "string" ? { snippet: source.snippet.slice(0, 500) } : {}),
+        citationStatus: source.citationStatus as "cited_in_summary" | "search_result_only",
+        retrievedAt: source.retrievedAt,
+      }]
+    } catch {
+      return []
+    }
+  })
+  return {
+    requestId: record.requestId,
+    model: record.model,
+    result: {
+      status: result.status as PublicInformationResponse["result"]["status"],
+      title: result.title,
+      summary: result.summary,
+      searched: result.searched,
+      retrievedAt: result.retrievedAt,
+      ...(typeof result.clarificationQuestion === "string" ? { clarificationQuestion: result.clarificationQuestion } : {}),
+      sources,
+    },
   }
 }
 
