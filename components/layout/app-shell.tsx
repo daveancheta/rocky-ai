@@ -4,11 +4,14 @@ import Link from "next/link"
 import { ChevronRight, Home, Monitor, Moon, Sun } from "lucide-react"
 import { useEffect, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
+import { BrandMark } from "@/components/brand-mark"
 import { useThemeStore, type Appearance } from "@/stores/theme-store"
+import { AuthStore } from "@/stores/auth-store"
 
 export function AppShell({ children }: { children: ReactNode }) {
   const appearance = useThemeStore((state) => state.appearance)
   const setAppearance = useThemeStore((state) => state.setAppearance)
+  const { signinWithGoogle } = AuthStore()
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
@@ -62,7 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="theme-value">{appearance}</span>
               <ChevronRight className="theme-chevron" size={15} aria-hidden="true" />
             </Button>
-            <Button type="button" variant="outline" className="sidebar-google-button">
+            <Button type="button" variant="outline" className="sidebar-google-button" onClick={signinWithGoogle}>
               <svg aria-hidden="true" viewBox="0 0 48 48" width="18" height="18">
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" />
                 <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.91a11.04 11.04 0 0 1-4.79 7.24l7.72 5.99c4.5-4.15 7.14-10.27 7.14-17.7Z" />
@@ -77,6 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="mobile-header">
         <Link href="/" className="brand" aria-label="Rocky home">
+          <BrandMark size={30} />
           <span>rocky<span className="brand-period">.</span></span>
         </Link>
         <span className="mobile-status"><span className="status-dot" /> Demo mode</span>
