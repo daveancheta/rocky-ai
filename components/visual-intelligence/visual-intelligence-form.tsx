@@ -3,17 +3,20 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { AlertCircle, ArrowLeft, Camera, Check, ImagePlus, LoaderCircle, RotateCcw, ScanEye, Trash2, Upload, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, Camera, Check, ImagePlus, Layers3, LoaderCircle, RotateCcw, ScanEye, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
   cameraAccessErrorMessage,
   requestVisualCamera,
+  uploadVisualAction,
   uploadVisualImage,
   validateVisualImageFile,
   VisualImageValidationError,
   type UploadProgress,
   type VisualAnalysisResponse,
+  type VisualObjectExplanationResponse,
+  type VisualSegmentationResponse,
 } from "@/lib/visual-intelligence-client"
 
 type SubmitState = "idle" | "uploading" | "analyzing" | "success" | "error"
@@ -26,6 +29,12 @@ export function VisualIntelligenceForm() {
   const [progress, setProgress] = useState<UploadProgress | null>(null)
   const [error, setError] = useState("")
   const [analysis, setAnalysis] = useState<VisualAnalysisResponse | null>(null)
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null)
+  const [segmentation, setSegmentation] = useState<VisualSegmentationResponse | null>(null)
+  const [explanation, setExplanation] = useState<VisualObjectExplanationResponse | null>(null)
+  const [objectQuestion, setObjectQuestion] = useState("")
+  const [actionLoading, setActionLoading] = useState<"segment" | "explain" | null>(null)
+  const [actionError, setActionError] = useState("")
   const [previewUrl, setPreviewUrl] = useState("")
   const [cameraMessage, setCameraMessage] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -59,6 +68,11 @@ export function VisualIntelligenceForm() {
     setError("")
     setCameraMessage("")
     setAnalysis(null)
+    setSelectedObjectId(null)
+    setSegmentation(null)
+    setExplanation(null)
+    setActionError("")
+    setObjectQuestion("")
     setState("idle")
     setProgress(null)
     setFile(next)
@@ -130,6 +144,10 @@ export function VisualIntelligenceForm() {
     if (!file || state === "uploading" || state === "analyzing") return
     setError("")
     setAnalysis(null)
+    setSelectedObjectId(null)
+    setSegmentation(null)
+    setExplanation(null)
+    setActionError("")
     setProgress({ loaded: 0, total: file.size, percent: 0 })
     setState("uploading")
     try {
@@ -138,6 +156,9 @@ export function VisualIntelligenceForm() {
         if (nextProgress.percent >= 100) setState("analyzing")
       })
       setAnalysis(response.analysis)
+      setSelectedObjectId(response.analysis.result.objects.length === 1 ? response.analysis.result.objects[0].id : null)
+      setSegmentation(null)
+      setExplanation(null)
       setState("success")
     } catch (uploadError) {
       setState("error")
@@ -146,6 +167,84 @@ export function VisualIntelligenceForm() {
   }
 
   const busy = state === "uploading" || state === "analyzing"
+  const selectedObject = analysis?.result.objects.find((object) => object.id === selectedObjectId) ?? null
+
+  const runObjectAction = async (action: "segment" | "explain") => {
+    if (!file || !analysis || !selectedObject || actionLoading) return
+    setActionLoading(action)
+    setActionError("")
+    try {
+      const fields = {
+        analysisRequestId: analysis.requestId,
+        objectId: selectedObject.id,
+        label: selectedObject.label,
+        bbox: selectedObject.bbox ? JSON.stringify(selectedObject.bbox) : "",
+        question: objectQuestion.trim(),
+      }
+      if (action === "segment") {
+        if (!selectedObject.bbox) throw new Error("Rocky could not locate this object precisely enough to draw a mask.")
+        const response = await uploadVisualAction<{ success: true; segmentation: VisualSegmentationResponse }>(
+          "/api/visual-intelligence/segment", file, fields, () => undefined,
+        )
+        if (response.segmentation.analysisRequestId !== analysis.requestId || response.segmentation.objectId !== selectedObject.id) {
+          throw new Error("The mask did not match this image analysis. Try again.")
+        }
+        setSegmentation(response.segmentation)
+      } else {
+        const response = await uploadVisualAction<{ success: true; explanation: VisualObjectExplanationResponse }>(
+          "/api/visual-intelligence/explain", file, fields, () => undefined,
+        )
+        if (response.explanation.analysisRequestId !== analysis.requestId || response.explanation.objectId !== selectedObject.id) {
+          throw new Error("The explanation did not match this image analysis. Try again.")
+        }
+        setExplanation(response.explanation)
+      }
+    } catch (actionFailure) {
+      setActionError(actionFailure instanceof Error ? actionFailure.message : "Rocky could not complete this object action. Try again.")
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const maskCanvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = maskCanvasRef.current
+    if (!canvas || !segmentation || !analysis) return
+    const scale = Math.min(1, 1600 / analysis.imageWidth)
+    canvas.width = Math.max(1, Math.round(analysis.imageWidth * scale))
+    canvas.height = Math.max(1, Math.round(analysis.imageHeight * scale))
+    const context = canvas.getContext("2d")
+    if (!context) return
+    context.clearRect(0, 0, canvas.width, canvas.height)
+
+    const raster = Uint8Array.from(atob(segmentation.mask.dataBase64), (character) => character.charCodeAt(0))
+    if (raster.length !== segmentation.mask.width * segmentation.mask.height) return
+    const maskCanvas = document.createElement("canvas")
+    maskCanvas.width = segmentation.mask.width
+    maskCanvas.height = segmentation.mask.height
+    const maskContext = maskCanvas.getContext("2d")
+    if (!maskContext) return
+    const maskPixels = maskContext.createImageData(maskCanvas.width, maskCanvas.height)
+    for (let index = 0; index < raster.length; index++) {
+      if (raster[index] === 0) continue
+      const offset = index * 4
+      maskPixels.data[offset] = 180
+      maskPixels.data[offset + 1] = 72
+      maskPixels.data[offset + 2] = 13
+      maskPixels.data[offset + 3] = 135
+    }
+    maskContext.putImageData(maskPixels, 0, 0)
+    const xScale = canvas.width / analysis.imageWidth
+    const yScale = canvas.height / analysis.imageHeight
+    const bounds = segmentation.mask.bounds
+    context.drawImage(
+      maskCanvas,
+      bounds.left * xScale,
+      bounds.top * yScale,
+      (bounds.right - bounds.left) * xScale,
+      (bounds.bottom - bounds.top) * yScale,
+    )
+  }, [analysis, segmentation])
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-5">
@@ -262,28 +361,141 @@ export function VisualIntelligenceForm() {
       </Card>
 
       {analysis && state === "success" && (
-        <Card className="gap-0 border border-border p-4 ring-0 sm:p-6" aria-live="polite">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-lg bg-secondary text-secondary-foreground"><Check size={18} aria-hidden="true" /></span>
-            <div><span className="eyebrow">ROCKY&apos;S ANALYSIS</span><h2 className="mb-0 mt-1 text-lg font-medium">{analysis.result.subject}</h2></div>
-          </div>
-          <p className="m-0 text-sm leading-relaxed">{analysis.result.shortDescription}</p>
-          {analysis.result.visualDetails.length > 0 && (
-            <ul className="mb-0 mt-4 grid gap-2 pl-5 text-sm leading-relaxed text-muted-foreground">
-              {analysis.result.visualDetails.map((detail, index) => <li key={`${index}-${detail}`}>{detail}</li>)}
-            </ul>
-          )}
-          {analysis.result.followUpSuggestions.length > 0 && (
-            <div className="mt-5 border-t border-border pt-4">
-              <p className="mb-2 mt-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">You could ask</p>
-              <div className="flex flex-wrap gap-2">
-                {analysis.result.followUpSuggestions.map((suggestion) => (
-                  <Button key={suggestion} type="button" variant="outline" size="sm" onClick={() => setQuestion(suggestion)}>{suggestion}</Button>
-                ))}
+        <>
+          <Card className="gap-0 border border-border p-4 ring-0 sm:p-6" aria-live="polite">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="grid size-9 place-items-center rounded-lg bg-secondary text-secondary-foreground"><Check size={18} aria-hidden="true" /></span>
+                <div><span className="eyebrow">ROCKY&apos;S ANALYSIS</span><h2 className="mb-0 mt-1 text-lg font-medium">{analysis.result.title}</h2></div>
               </div>
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{analysis.model}</span>
             </div>
-          )}
-        </Card>
+
+            <div className="relative mx-auto mb-5 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
+              <Image src={previewUrl} alt="Original uploaded image with detected object locations" fill unoptimized className="object-contain" />
+              {analysis.result.objects.map((object) => object.bbox && (
+                <div
+                  key={object.id}
+                  aria-hidden="true"
+                  className={`absolute border-2 ${object.id === selectedObjectId ? "border-primary" : "border-primary/60"}`}
+                  style={{
+                    left: `${object.bbox.xMin / 10}%`,
+                    top: `${object.bbox.yMin / 10}%`,
+                    width: `${(object.bbox.xMax - object.bbox.xMin) / 10}%`,
+                    height: `${(object.bbox.yMax - object.bbox.yMin) / 10}%`,
+                  }}
+                >
+                  <span className="absolute left-0 top-0 -translate-y-full rounded-t bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">{object.label}</span>
+                </div>
+              ))}
+              <canvas ref={maskCanvasRef} aria-label={segmentation ? `SAM 3.1 mask for ${selectedObject?.label ?? "selected object"}` : undefined} className="pointer-events-none absolute inset-0 h-full w-full" />
+            </div>
+            <p className="mb-4 mt-0 text-xs text-muted-foreground">Bounding boxes from {analysis.model}{segmentation && ` · Segmentation mask from ${segmentation.model}`}</p>
+
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{analysis.result.category}</span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{analysis.result.identificationConfidence} confidence</span>
+            </div>
+            <h3 className="mb-1 mt-0 text-sm font-semibold">Best-supported identification</h3>
+            <p className="mb-3 mt-0 text-sm leading-relaxed">{analysis.result.identification}</p>
+            <p className="m-0 text-sm leading-relaxed text-muted-foreground">{analysis.result.shortDescription}</p>
+
+            {analysis.result.visualObservations.length > 0 && (
+              <section className="mt-5 border-t border-border pt-4" aria-label="Visual observations">
+                <h3 className="mb-2 mt-0 text-sm font-semibold">Visible in the image</h3>
+                <ul className="mb-0 mt-0 grid gap-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
+                  {analysis.result.visualObservations.map((detail, index) => <li key={`${index}-${detail}`}>{detail}</li>)}
+                </ul>
+              </section>
+            )}
+            {analysis.result.distinguishingFeatures.length > 0 && (
+              <section className="mt-4" aria-label="Distinguishing features">
+                <h3 className="mb-2 mt-0 text-sm font-semibold">Distinguishing features</h3>
+                <ul className="mb-0 mt-0 grid gap-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
+                  {analysis.result.distinguishingFeatures.map((detail, index) => <li key={`${index}-${detail}`}>{detail}</li>)}
+                </ul>
+              </section>
+            )}
+            {analysis.result.contextNotes.length > 0 && (
+              <section className="mt-4" aria-label="Context and verification">
+                <h3 className="mb-2 mt-0 text-sm font-semibold">Context</h3>
+                <div className="grid gap-2">
+                  {analysis.result.contextNotes.map((note, index) => (
+                    <div key={`${index}-${note.text}`} className="rounded-lg bg-muted/60 p-3">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{note.evidence === "visual_observation" ? "Visual observation" : note.evidence === "general_context" ? "General context" : "Needs external verification"}</span>
+                      <p className="mb-0 mt-1 text-sm leading-relaxed">{note.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            {(analysis.result.uncertainty || analysis.result.alternatives.length > 0) && (
+              <section className="mt-4 rounded-lg border border-border p-3" aria-label="Uncertainty">
+                <h3 className="mb-1 mt-0 text-sm font-semibold">Uncertainty</h3>
+                <p className="m-0 text-sm leading-relaxed text-muted-foreground">{analysis.result.uncertainty}</p>
+                {analysis.result.alternatives.length > 0 && <p className="mb-0 mt-2 text-sm leading-relaxed text-muted-foreground">Other possibilities: {analysis.result.alternatives.join(" · ")}</p>}
+              </section>
+            )}
+
+            {analysis.result.objects.length > 0 && (
+              <section className="mt-5 border-t border-border pt-4" aria-labelledby="detected-objects-title">
+                <h3 id="detected-objects-title" className="mb-2 mt-0 text-sm font-semibold">Detected objects</h3>
+                <p className="mb-3 mt-0 text-xs text-muted-foreground">{analysis.result.objects.length > 1 ? "Select an object to inspect or explain it." : "Select this object to inspect or explain it."}</p>
+                <div className="grid gap-2">
+                  {analysis.result.objects.map((object) => (
+                    <button
+                      key={object.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedObjectId(object.id)
+                        setSegmentation(null)
+                        setExplanation(null)
+                        setActionError("")
+                      }}
+                      aria-pressed={selectedObjectId === object.id}
+                      className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${selectedObjectId === object.id ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background hover:bg-muted"}`}
+                    >
+                      <span className="min-w-0"><span className="block truncate text-sm font-medium">{object.label}</span><span className="mt-0.5 block text-xs text-muted-foreground">{object.category} · {object.confidence} confidence{!object.bbox && " · no precise location"}</span></span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{selectedObjectId === object.id ? "Selected" : "Select"}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {selectedObject && (
+              <section className="mt-4 rounded-lg bg-muted/50 p-3" aria-label={`Actions for ${selectedObject.label}`}>
+                <label htmlFor="object-question" className="mb-1.5 block text-sm font-medium">Ask about {selectedObject.label}</label>
+                <textarea id="object-question" rows={2} maxLength={2000} value={objectQuestion} onChange={(event) => setObjectQuestion(event.target.value.slice(0, 2000))} placeholder="What might this be used for?" disabled={actionLoading !== null} className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" disabled={actionLoading !== null || !selectedObject.bbox} onClick={() => void runObjectAction("segment")}>
+                    {actionLoading === "segment" ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Layers3 aria-hidden="true" />}
+                    {actionLoading === "segment" ? "Segmenting…" : segmentation ? "Refresh SAM mask" : "Outline with SAM 3.1"}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={actionLoading !== null} onClick={() => void runObjectAction("explain")}>
+                    {actionLoading === "explain" ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <ScanEye aria-hidden="true" />}
+                    {actionLoading === "explain" ? "Explaining…" : "Explain this object"}
+                  </Button>
+                </div>
+                {!selectedObject.bbox && <p className="mb-0 mt-2 text-xs text-muted-foreground">SAM needs a visible location; Rocky could not confidently place a box around this object.</p>}
+                {actionError && <p role="alert" className="mb-0 mt-3 text-sm text-destructive">{actionError}</p>}
+                {explanation && <div className="mt-3 rounded-lg border border-border bg-card p-3"><p className="mb-1 mt-0 text-xs font-semibold text-muted-foreground">Muse Spark · {explanation.model}</p><p className="m-0 whitespace-pre-wrap text-sm leading-relaxed">{explanation.answer}</p></div>}
+                {segmentation && <p className="mb-0 mt-2 text-xs text-muted-foreground">The colored overlay shows the SAM 3.1 mask aligned to the original image.</p>}
+              </section>
+            )}
+
+            {analysis.result.followUpSuggestions.length > 0 && (
+              <div className="mt-5 border-t border-border pt-4">
+                <p className="mb-2 mt-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">You could ask</p>
+                <div className="flex flex-wrap gap-2">
+                  {analysis.result.followUpSuggestions.map((suggestion) => (
+                    <Button key={suggestion} type="button" variant="outline" size="sm" onClick={() => setQuestion(suggestion)}>{suggestion}</Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </>
       )}
 
       <Link href="/" className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground no-underline hover:text-foreground"><ArrowLeft size={15} aria-hidden="true" />Back to Home</Link>

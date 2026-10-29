@@ -1,6 +1,7 @@
 import "server-only"
 
 import {
+  buildObjectPrompt,
   decodeMaskToRaster,
   parseImageStream,
   recordsOfKind,
@@ -30,12 +31,41 @@ export interface AudioInput {
   fileName?: string
 }
 
+export type VisualCategory = "object" | "animal" | "plant" | "landmark" | "product" | "person" | "other"
+export type VisualConfidence = "low" | "medium" | "high"
+
+export interface NormalizedVisualBox {
+  xMin: number
+  yMin: number
+  xMax: number
+  yMax: number
+}
+
+export interface DetectedVisualObject {
+  id: string
+  label: string
+  category: VisualCategory
+  confidence: VisualConfidence
+  bbox: NormalizedVisualBox | null
+}
+
+export interface VisualContextNote {
+  text: string
+  evidence: "visual_observation" | "general_context" | "requires_external_verification"
+}
+
 export interface VisualAnalysis {
-  subject: string
+  title: string
   category: "object" | "animal" | "plant" | "landmark" | "product" | "person" | "other"
+  identification: string
+  identificationConfidence: VisualConfidence
   shortDescription: string
-  visualDetails: string[]
-  confidence: "low" | "medium" | "high"
+  visualObservations: string[]
+  distinguishingFeatures: string[]
+  contextNotes: VisualContextNote[]
+  uncertainty: string
+  alternatives: string[]
+  objects: DetectedVisualObject[]
   followUpSuggestions: string[]
 }
 
@@ -96,17 +126,65 @@ const visualAnalysisSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    subject: { type: "string" },
+    title: { type: "string" },
     category: {
       type: "string",
       enum: ["object", "animal", "plant", "landmark", "product", "person", "other"],
     },
+    identification: { type: "string" },
+    identificationConfidence: { type: "string", enum: ["low", "medium", "high"] },
     shortDescription: { type: "string" },
-    visualDetails: { type: "array", items: { type: "string" } },
-    confidence: { type: "string", enum: ["low", "medium", "high"] },
+    visualObservations: { type: "array", items: { type: "string" } },
+    distinguishingFeatures: { type: "array", items: { type: "string" } },
+    contextNotes: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          text: { type: "string" },
+          evidence: { type: "string", enum: ["visual_observation", "general_context", "requires_external_verification"] },
+        },
+        required: ["text", "evidence"],
+      },
+    },
+    uncertainty: { type: "string" },
+    alternatives: { type: "array", items: { type: "string" } },
+    objects: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          label: { type: "string" },
+          category: { type: "string", enum: ["object", "animal", "plant", "landmark", "product", "person", "other"] },
+          confidence: { type: "string", enum: ["low", "medium", "high"] },
+          bbox: {
+            anyOf: [
+              {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  xMin: { type: "integer", minimum: 0, maximum: 1000 },
+                  yMin: { type: "integer", minimum: 0, maximum: 1000 },
+                  xMax: { type: "integer", minimum: 0, maximum: 1000 },
+                  yMax: { type: "integer", minimum: 0, maximum: 1000 },
+                },
+                required: ["xMin", "yMin", "xMax", "yMax"],
+              },
+              { type: "null" },
+            ],
+          },
+        },
+        required: ["label", "category", "confidence", "bbox"],
+      },
+    },
     followUpSuggestions: { type: "array", items: { type: "string" } },
   },
-  required: ["subject", "category", "shortDescription", "visualDetails", "confidence", "followUpSuggestions"],
+  required: [
+    "title", "category", "identification", "identificationConfidence", "shortDescription", "visualObservations",
+    "distinguishingFeatures", "contextNotes", "uncertainty", "alternatives", "objects", "followUpSuggestions",
+  ],
 } as const
 
 function getCapabilityConfigs(env: Environment): CapabilityConfig[] {
@@ -172,22 +250,75 @@ function parseVisualAnalysis(value: string): VisualAnalysis {
   }
 
   const record = parsed as Record<string, unknown>
-  const categories = ["object", "animal", "plant", "landmark", "product", "person", "other"]
-  const confidenceLevels = ["low", "medium", "high"]
-  if (
-    typeof record.subject !== "string"
-    || !categories.includes(String(record.category))
-    || typeof record.shortDescription !== "string"
-    || !Array.isArray(record.visualDetails)
-    || !record.visualDetails.every((item) => typeof item === "string")
-    || !confidenceLevels.includes(String(record.confidence))
-    || !Array.isArray(record.followUpSuggestions)
-    || !record.followUpSuggestions.every((item) => typeof item === "string")
-  ) {
-    throw new MetaModelApiError("Meta returned structured analysis in an unexpected shape.", { code: "malformed_response" })
+  const categories: VisualCategory[] = ["object", "animal", "plant", "landmark", "product", "person", "other"]
+  const confidenceLevels: VisualConfidence[] = ["low", "medium", "high"]
+  const category = categories.includes(record.category as VisualCategory) ? record.category as VisualCategory : "other"
+  const confidence = confidenceLevels.includes(record.identificationConfidence as VisualConfidence)
+    ? record.identificationConfidence as VisualConfidence
+    : "low"
+  const title = typeof record.title === "string" ? record.title.trim() : ""
+  const identification = typeof record.identification === "string" ? record.identification.trim() : ""
+  const shortDescription = typeof record.shortDescription === "string" ? record.shortDescription.trim() : ""
+  if (!title && !identification && !shortDescription) {
+    throw new MetaModelApiError("Meta returned no usable visual analysis.", { code: "malformed_response" })
   }
 
-  return record as unknown as VisualAnalysis
+  const textList = (value: unknown, limit: number): string[] => Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()).slice(0, limit)
+    : []
+
+  const objects: DetectedVisualObject[] = Array.isArray(record.objects)
+    ? record.objects.slice(0, 20).flatMap((value, index) => {
+      if (!value || typeof value !== "object") return []
+      const item = value as Record<string, unknown>
+      if (typeof item.label !== "string" || !item.label.trim()) return []
+      const objectCategory = categories.includes(item.category as VisualCategory) ? item.category as VisualCategory : "other"
+      const objectConfidence = confidenceLevels.includes(item.confidence as VisualConfidence)
+        ? item.confidence as VisualConfidence
+        : "low"
+      let bbox: NormalizedVisualBox | null = null
+      if (item.bbox && typeof item.bbox === "object") {
+        const candidate = item.bbox as Record<string, unknown>
+        const values = [candidate.xMin, candidate.yMin, candidate.xMax, candidate.yMax]
+        if (values.every((coordinate) => Number.isInteger(coordinate) && Number(coordinate) >= 0 && Number(coordinate) <= 1000)) {
+          const [xMin, yMin, xMax, yMax] = values as number[]
+          if (xMin < xMax && yMin < yMax) bbox = { xMin, yMin, xMax, yMax }
+        }
+      }
+      return [{ id: `object-${index + 1}`, label: item.label.trim(), category: objectCategory, confidence: objectConfidence, bbox }]
+    })
+    : []
+
+  const contextNotes: VisualContextNote[] = Array.isArray(record.contextNotes)
+    ? record.contextNotes.slice(0, 12).flatMap((value) => {
+      if (!value || typeof value !== "object") return []
+      const item = value as Record<string, unknown>
+      if (typeof item.text !== "string" || !item.text.trim()) return []
+      const evidence: VisualContextNote["evidence"] = item.evidence === "visual_observation"
+        || item.evidence === "general_context"
+        || item.evidence === "requires_external_verification"
+        ? item.evidence
+        : "requires_external_verification"
+      return [{ text: item.text.trim(), evidence }]
+    })
+    : []
+
+  return {
+    title: title || identification || "Image analysis",
+    category,
+    identification: identification || "Unclear from the available visual evidence.",
+    identificationConfidence: confidence,
+    shortDescription: shortDescription || "The image does not provide enough clear detail for a more specific description.",
+    visualObservations: textList(record.visualObservations, 12),
+    distinguishingFeatures: textList(record.distinguishingFeatures, 12),
+    contextNotes,
+    uncertainty: typeof record.uncertainty === "string" && record.uncertainty.trim()
+      ? record.uncertainty.trim()
+      : "Some details may be uncertain from this image alone.",
+    alternatives: textList(record.alternatives, 8),
+    objects,
+    followUpSuggestions: textList(record.followUpSuggestions, 8),
+  }
 }
 
 function retryDelay(headers: Headers | undefined): number | undefined {
@@ -323,22 +454,29 @@ function createMetaModelApi(options: MetaModelApiOptions = {}) {
     }
   }
 
-  async function analyzeImage(image: ImageInput, question?: string): Promise<ServiceResult<VisualAnalysis & { responseId: string }>> {
+  async function analyzeImage(image: ImageInput, question?: string, imageSize?: { width: number; height: number }): Promise<ServiceResult<VisualAnalysis & { responseId: string }>> {
     const requestId = randomUUID()
     const model = getModel("museSpark", requestId)
     const dataUrl = imageDataUrl(image)
-    const prompt = question ? assertPrompt(question, "Question", 2_000) : "Describe and analyze the main subject in this image."
+    const userQuestion = question ? assertPrompt(question, "Question", 2_000) : "Describe and analyze the main subject in this image."
+    const prompt = [
+      userQuestion,
+      "Return a short title; general category; best-supported identification and confidence; concise description; visible observations; distinguishing features; useful common context; uncertainty and plausible alternatives; follow-up questions; and a list of clearly visible objects.",
+      "For each visible object, provide a short label, category, confidence, and bounding box on a normalized 0–1000 grid where (0,0) is top-left and (1000,1000) is bottom-right. If an object's location cannot be grounded, set its bbox to null. Do not invent objects or precise identities.",
+      imageSize ? `Coordinates refer to the full image as sent, dimensions ${imageSize.width} by ${imageSize.height} pixels after orientation.` : "Coordinates refer to the full image as sent.",
+      "Keep direct visual observations separate from general context. Mark facts that need checking outside the image as requires_external_verification.",
+    ].join("\n\n")
 
     return run("museSpark", model, async (id) => {
       const response = await getClient(id).responses.create({
         model,
         store: false,
-        instructions: "Analyze visual content only. Do not identify a person or infer sensitive personal traits. Be concise, distinguish visible evidence from uncertain guesses, and return the requested structured result.",
+        instructions: "You are Rocky's careful visual analyst. Analyze only what this image supports. Never identify a person's identity, social profile, sensitive traits, or emotional state; for people, describe only visible non-sensitive characteristics and scene context. For animals, identify species only when evidence supports it and distinguish uncertain breed or individual claims. For products, do not claim an exact model unless clearly supported by visible markings. If the image is blurry, occluded, ambiguous, or too small, say so plainly, lower confidence, and give alternatives instead of guessing. Common-use information is general context, not proof about this exact item. Return the requested structured result.",
         input: [{
           type: "message",
           role: "user",
           content: [
-            { type: "input_text", text: `${prompt}\nReturn category, a brief description, visible details, confidence, and useful follow-up questions.` },
+            { type: "input_text", text: prompt },
             { type: "input_image", image_url: dataUrl, detail: "auto" },
           ],
         }],
@@ -421,6 +559,86 @@ function createMetaModelApi(options: MetaModelApiOptions = {}) {
         throw new MetaModelApiError("Meta returned malformed or incomplete SAM segmentation output.", { code: "malformed_response" })
       }
       return parsed
+    })
+  }
+
+  async function segmentImageInBox(
+    image: ImageInput,
+    options: { width: number; height: number; bbox: NormalizedVisualBox },
+  ): Promise<ServiceResult<ImageSegmentationResult>> {
+    const requestId = randomUUID()
+    const model = getModel("sam", requestId)
+    const dataUrl = imageDataUrl(image)
+    const { width, height, bbox } = options
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1
+      || width > 10_000 || height > 10_000 || width * height > 25_000_000
+      || ![bbox.xMin, bbox.yMin, bbox.xMax, bbox.yMax].every((value) => Number.isInteger(value) && value >= 0 && value <= 1000)
+      || bbox.xMin >= bbox.xMax || bbox.yMin >= bbox.yMax) {
+      throw new MetaModelApiError("The selected object location is invalid.", { code: "invalid_object_box", requestId })
+    }
+    const left = Math.max(0, Math.min(width - 1, Math.round(bbox.xMin * width / 1000)))
+    const top = Math.max(0, Math.min(height - 1, Math.round(bbox.yMin * height / 1000)))
+    const right = Math.max(left + 1, Math.min(width, Math.round(bbox.xMax * width / 1000)))
+    const bottom = Math.max(top + 1, Math.min(height, Math.round(bbox.yMax * height / 1000)))
+    const objectPrompt = buildObjectPrompt({
+      size: { width, height },
+      objects: [{ id: 1, prompts: [{ box: { left, top, right, bottom } }] }],
+    })
+
+    return run("sam", model, async (id) => {
+      const events = await getClient(id).responses.create({
+        model,
+        stream: true,
+        store: false,
+        metadata: { mask_encoding: "one_bit" },
+        input: [{
+          type: "message",
+          role: "user",
+          content: [
+            { type: "input_text", text: objectPrompt },
+            { type: "input_image", image_url: dataUrl, detail: "auto" },
+          ],
+        }],
+      }, { timeout, maxRetries: 0 })
+      const parsed = await parseImageStream(events).finalResult
+      if (parsed.outcome.status !== "completed" || parsed.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+        throw new MetaModelApiError("Meta returned malformed or incomplete SAM segmentation output.", { code: "malformed_response" })
+      }
+      return parsed
+    })
+  }
+
+  async function explainVisualObject(
+    image: ImageInput,
+    options: { label: string; bbox: NormalizedVisualBox | null; question?: string },
+  ): Promise<ServiceResult<{ responseId: string; answer: string }>> {
+    const requestId = randomUUID()
+    const model = getModel("museSpark", requestId)
+    const dataUrl = imageDataUrl(image)
+    const label = assertPrompt(options.label, "Object label", 200)
+    const question = options.question ? assertPrompt(options.question, "Question", 2_000) : "Explain what this object appears to be and what it is commonly used for, if that can be stated reliably."
+    const region = options.bbox
+      ? `The selected object's approximate normalized box is x=${options.bbox.xMin}–${options.bbox.xMax}, y=${options.bbox.yMin}–${options.bbox.yMax} on a 0–1000 grid.`
+      : "The object's location could not be confidently bounded; use the label and the visible image context carefully."
+
+    return run("museSpark", model, async (id) => {
+      const response = await getClient(id).responses.create({
+        model,
+        store: false,
+        instructions: "Explain only the selected visible object using the image. Do not identify a person's identity or infer sensitive personal traits or emotional state. If the selected label or region is ambiguous, describe uncertainty and plausible alternatives instead of guessing. Distinguish visual observations from general context and from facts that require external verification.",
+        input: [{
+          type: "message",
+          role: "user",
+          content: [
+            { type: "input_text", text: `Selected object: ${label}. ${region}\n\nQuestion: ${question}` },
+            { type: "input_image", image_url: dataUrl, detail: "auto" },
+          ],
+        }],
+      }, { timeout, maxRetries: 0 })
+      if (response.status !== "completed" || !response.id || !response.output_text?.trim()) {
+        throw new MetaModelApiError("Meta returned no explanation for the selected object.", { code: "malformed_response" })
+      }
+      return { responseId: response.id, answer: response.output_text.trim() }
     })
   }
 
@@ -670,6 +888,8 @@ function createMetaModelApi(options: MetaModelApiOptions = {}) {
     analyzeImage,
     askMuseSparkFollowUp,
     segmentImage,
+    segmentImageInBox,
+    explainVisualObject,
     researchWithMuseWonder,
     generateMuseImage,
     editMuseImage,
@@ -685,6 +905,8 @@ const metaModelApi = createMetaModelApi()
 export const analyzeImage = metaModelApi.analyzeImage
 export const askMuseSparkFollowUp = metaModelApi.askMuseSparkFollowUp
 export const segmentImage = metaModelApi.segmentImage
+export const segmentImageInBox = metaModelApi.segmentImageInBox
+export const explainVisualObject = metaModelApi.explainVisualObject
 export const researchWithMuseWonder = metaModelApi.researchWithMuseWonder
 export const generateMuseImage = metaModelApi.generateMuseImage
 export const editMuseImage = metaModelApi.editMuseImage

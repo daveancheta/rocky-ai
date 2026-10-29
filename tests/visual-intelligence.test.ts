@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import sharp from "sharp"
+import type { VisualAnalysis } from "../lib/meta-model-api"
 import {
   cameraAccessErrorMessage,
   MAX_VISUAL_IMAGE_BYTES,
@@ -22,6 +23,21 @@ function imageFile(bytes: Uint8Array, type = "image/png", name = "sample.png") {
 
 async function validPng() {
   return new Uint8Array(await sharp({ create: { width: 3, height: 2, channels: 3, background: "#db8b56" } }).png().toBuffer())
+}
+
+const sampleAnalysis: VisualAnalysis = {
+  title: "Cup on a table",
+  category: "product",
+  identification: "A cup",
+  identificationConfidence: "high",
+  shortDescription: "A ceramic cup on a table.",
+  visualObservations: ["A handle is visible"],
+  distinguishingFeatures: ["Rounded handle"],
+  contextNotes: [{ text: "Cups are commonly used for drinking.", evidence: "general_context" }],
+  uncertainty: "The exact brand is not visible.",
+  alternatives: [],
+  objects: [{ id: "object-1", label: "cup", category: "product", confidence: "high", bbox: { xMin: 100, yMin: 100, xMax: 800, yMax: 900 } }],
+  followUpSuggestions: ["Ask about the material."],
 }
 
 class FakeXhr {
@@ -92,10 +108,10 @@ test("upload helper reports progress and resolves successful analysis", async ()
   assert.equal(xhr.withCredentials, true)
   xhr.upload.onprogress?.({ lengthComputable: true, loaded: 5, total: 10 } as ProgressEvent)
   xhr.status = 200
-  xhr.responseText = JSON.stringify({ success: true, analysis: { requestId: "r1", model: "muse-spark-1.3", result: { subject: "cup" } } })
+  xhr.responseText = JSON.stringify({ success: true, analysis: { requestId: "r1", model: "muse-spark-1.3", imageWidth: 3, imageHeight: 2, result: sampleAnalysis } })
   xhr.onload?.()
   const payload = await pending
-  assert.equal(payload.analysis.result.subject, "cup")
+  assert.equal(payload.analysis.result.identification, "A cup")
   assert.deepEqual(progress, [50])
   assert.equal(xhr.sentBody?.get("question"), "What is it?")
 })
@@ -161,7 +177,7 @@ test("authenticated endpoint validates and analyzes an image transiently", async
     analyzeImage: async (image, question) => {
       analyzedMime = image.mimeType
       analyzedQuestion = question
-      return { requestId: "provider-r1", model: "muse-spark-1.3", result: { subject: "cup" } }
+      return { requestId: "provider-r1", model: "muse-spark-1.3", result: sampleAnalysis }
     },
   })
   const form = new FormData()
@@ -172,11 +188,12 @@ test("authenticated endpoint validates and analyzes an image transiently", async
     headers: { origin: "https://rocky.test" },
     body: form,
   }))
-  const body = await response.json() as { success: boolean; analysis: { model: string } }
+  const body = await response.json() as { success: boolean; analysis: { model: string; imageWidth: number; imageHeight: number } }
   assert.equal(response.status, 200)
   assert.equal(response.headers.get("cache-control"), "no-store")
   assert.equal(body.success, true)
   assert.equal(body.analysis.model, "muse-spark-1.3")
+  assert.deepEqual([body.analysis.imageWidth, body.analysis.imageHeight], [3, 2])
   assert.equal(analyzedMime, "image/png")
   assert.equal(analyzedQuestion, "What is this used for?")
 })

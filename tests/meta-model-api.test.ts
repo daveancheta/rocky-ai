@@ -22,11 +22,23 @@ const pngImage: ImageInput = {
 }
 
 const analysis: VisualAnalysis = {
-  subject: "red fox",
+  title: "Red fox in snow",
   category: "animal",
+  identification: "Red fox",
+  identificationConfidence: "high",
   shortDescription: "A red fox standing in snow.",
-  visualDetails: ["Reddish fur", "Snow-covered ground"],
-  confidence: "high",
+  visualObservations: ["Reddish fur", "Snow-covered ground"],
+  distinguishingFeatures: ["Bushy tail", "Pointed ears"],
+  contextNotes: [{ text: "Foxes commonly hunt small mammals.", evidence: "general_context" }],
+  uncertainty: "The precise subspecies is not clear.",
+  alternatives: ["Another fox species"],
+  objects: [{
+    id: "object-1",
+    label: "red fox",
+    category: "animal",
+    confidence: "high",
+    bbox: { xMin: 220, yMin: 190, xMax: 760, yMax: 940 },
+  }],
   followUpSuggestions: ["Ask about the fox's habitat."],
 }
 
@@ -143,7 +155,7 @@ test("image analysis uses documented Responses input and validates structured ou
   })
 
   const result = await api.analyzeImage(pngImage)
-  assert.equal(result.result.subject, "red fox")
+  assert.equal(result.result.identification, "Red fox")
   assert.equal(result.model, "muse-spark-1.3")
   assert.equal(calls.length, 1)
 })
@@ -153,6 +165,97 @@ test("malformed structured analysis is rejected", async () => {
     env,
     logger: silentLogger(),
     fetch: mockFetch(() => jsonResponse(responsePayload("not-json"))),
+  })
+  await assert.rejects(api.analyzeImage(pngImage), (error: unknown) => {
+    assert.ok(error instanceof MetaModelApiError)
+    assert.equal(error.code, "malformed_response")
+    return true
+  })
+})
+
+test("ambiguous and blurry images retain uncertainty and normalize missing optional fields", async () => {
+  const cautious: VisualAnalysis = {
+    ...analysis,
+    title: "Unclear animal in a blurry image",
+    identification: "An animal, possibly a fox",
+    identificationConfidence: "low",
+    shortDescription: "A small, blurry animal-shaped figure is visible.",
+    visualObservations: ["The image is out of focus"],
+    distinguishingFeatures: [],
+    contextNotes: [],
+    uncertainty: "The image is too blurry to determine the species.",
+    alternatives: ["A small dog", "Another wild animal"],
+    objects: [],
+    followUpSuggestions: [],
+  }
+  const api = metaModelApiTesting.createMetaModelApi({
+    env,
+    logger: silentLogger(),
+    fetch: mockFetch((_url, init) => {
+      const body = JSON.parse(String(init.body))
+      assert.match(body.instructions, /blurry.*lower confidence/i)
+      assert.match(body.instructions, /Never identify a person's identity/i)
+      return jsonResponse(responsePayload(JSON.stringify({ ...cautious, distinguishingFeatures: undefined })))
+    }),
+  })
+
+  const result = await api.analyzeImage(pngImage, "What animal is this?")
+  assert.equal(result.result.identificationConfidence, "low")
+  assert.match(result.result.uncertainty, /too blurry/i)
+  assert.deepEqual(result.result.distinguishingFeatures, [])
+})
+
+test("multiple visible objects are returned separately for user selection", async () => {
+  const multiple: VisualAnalysis = {
+    ...analysis,
+    title: "Two objects on a table",
+    category: "object",
+    identification: "A cup and a spoon",
+    identificationConfidence: "high",
+    objects: [
+      { id: "object-1", label: "cup", category: "product", confidence: "high", bbox: { xMin: 100, yMin: 200, xMax: 500, yMax: 900 } },
+      { id: "object-2", label: "spoon", category: "object", confidence: "high", bbox: { xMin: 530, yMin: 300, xMax: 900, yMax: 500 } },
+    ],
+  }
+  const api = metaModelApiTesting.createMetaModelApi({
+    env,
+    logger: silentLogger(),
+    fetch: mockFetch(() => jsonResponse(responsePayload(JSON.stringify(multiple)))),
+  })
+  const result = await api.analyzeImage(pngImage)
+  assert.deepEqual(result.result.objects.map((object) => object.label), ["cup", "spoon"])
+  assert.notDeepEqual(result.result.objects[0].bbox, result.result.objects[1].bbox)
+})
+
+test("person analysis instructions prohibit identity and sensitive inferences", async () => {
+  const person: VisualAnalysis = {
+    ...analysis,
+    title: "Person standing outdoors",
+    category: "person",
+    identification: "A person",
+    identificationConfidence: "high",
+    shortDescription: "A person is standing near a tree.",
+    objects: [{ id: "object-1", label: "person", category: "person", confidence: "high", bbox: null }],
+  }
+  const api = metaModelApiTesting.createMetaModelApi({
+    env,
+    logger: silentLogger(),
+    fetch: mockFetch((_url, init) => {
+      const body = JSON.parse(String(init.body))
+      assert.match(body.instructions, /Never identify a person's identity, social profile, sensitive traits, or emotional state/i)
+      return jsonResponse(responsePayload(JSON.stringify(person)))
+    }),
+  })
+  const result = await api.analyzeImage(pngImage)
+  assert.equal(result.result.identification, "A person")
+  assert.equal(result.result.objects[0].bbox, null)
+})
+
+test("empty Muse Spark analysis output is reported as malformed", async () => {
+  const api = metaModelApiTesting.createMetaModelApi({
+    env,
+    logger: silentLogger(),
+    fetch: mockFetch(() => jsonResponse(responsePayload(""))),
   })
   await assert.rejects(api.analyzeImage(pngImage), (error: unknown) => {
     assert.ok(error instanceof MetaModelApiError)
@@ -180,6 +283,73 @@ test("SAM streaming output is parsed into typed boxes and masks", async () => {
   assert.equal(result.result.outcome.status, "completed")
   assert.equal(recordsOfKind(result.result.records, "box").length, 1)
   assert.equal(recordsOfKind(result.result.records, "mask").length, 1)
+})
+
+test("SAM receives the selected object's image-space box for segmentation", async () => {
+  const output = "<0f>0<|box;x1=211;y1=228;x2=270;y2=254;w=320;h=334|><|mask;x=0;y=0;data=27,60,~!!!!M!0c[0o91w?q1!pIH4pPRVp2B3'7`e.ioeAf6-k/#Xd8%dX9x(|>"
+  const api = metaModelApiTesting.createMetaModelApi({
+    env,
+    logger: silentLogger(),
+    fetch: mockFetch((url, init) => {
+      assert.equal(url.pathname, "/v1/responses")
+      const body = JSON.parse(String(init.body))
+      assert.equal(body.model, "sam-3.1")
+      assert.equal(body.stream, true)
+      const prompt = body.input[0].content[0].text as string
+      assert.match(prompt, /320/)
+      assert.match(prompt, /334/)
+      assert.match(prompt, /box/i)
+      return responseStream(output)
+    }),
+  })
+  const result = await api.segmentImageInBox(pngImage, {
+    width: 320,
+    height: 334,
+    bbox: { xMin: 200, yMin: 210, xMax: 800, yMax: 900 },
+  })
+  assert.equal(result.model, "sam-3.1")
+  assert.equal(recordsOfKind(result.result.records, "mask").length, 1)
+})
+
+test("invalid selected object geometry is rejected before a SAM request", async () => {
+  let calls = 0
+  const api = metaModelApiTesting.createMetaModelApi({
+    env,
+    logger: silentLogger(),
+    fetch: mockFetch(() => { calls++; return responseStream("") }),
+  })
+  await assert.rejects(api.segmentImageInBox(pngImage, {
+    width: 320,
+    height: 334,
+    bbox: { xMin: 800, yMin: 900, xMax: 200, yMax: 100 },
+  }), (error: unknown) => {
+    assert.ok(error instanceof MetaModelApiError)
+    assert.equal(error.code, "invalid_object_box")
+    return true
+  })
+  assert.equal(calls, 0)
+})
+
+test("object explanation uses Muse Spark and safely handles empty responses as errors", async () => {
+  const api = metaModelApiTesting.createMetaModelApi({
+    env,
+    logger: silentLogger(),
+    fetch: mockFetch((_url, init) => {
+      const body = JSON.parse(String(init.body))
+      assert.equal(body.model, "muse-spark-1.3")
+      assert.match(body.instructions, /Do not identify a person's identity/i)
+      assert.match(body.input[0].content[0].text, /Selected object: red fox/i)
+      return jsonResponse(responsePayload("   "))
+    }),
+  })
+  await assert.rejects(api.explainVisualObject(pngImage, {
+    label: "red fox",
+    bbox: analysis.objects[0].bbox,
+  }), (error: unknown) => {
+    assert.ok(error instanceof MetaModelApiError)
+    assert.equal(error.code, "malformed_response")
+    return true
+  })
 })
 
 test("Spark follow-up and Wonder research return text and grounded citation URLs", async () => {

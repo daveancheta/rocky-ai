@@ -14,14 +14,54 @@ export interface ImageDimensions {
 export interface VisualAnalysisResponse {
   requestId: string
   model: string
+  imageWidth: number
+  imageHeight: number
   result: {
-    subject: string
+    title: string
     category: "object" | "animal" | "plant" | "landmark" | "product" | "person" | "other"
+    identification: string
+    identificationConfidence: "low" | "medium" | "high"
     shortDescription: string
-    visualDetails: string[]
-    confidence: "low" | "medium" | "high"
+    visualObservations: string[]
+    distinguishingFeatures: string[]
+    contextNotes: Array<{
+      text: string
+      evidence: "visual_observation" | "general_context" | "requires_external_verification"
+    }>
+    uncertainty: string
+    alternatives: string[]
+    objects: Array<{
+      id: string
+      label: string
+      category: "object" | "animal" | "plant" | "landmark" | "product" | "person" | "other"
+      confidence: "low" | "medium" | "high"
+      bbox: { xMin: number; yMin: number; xMax: number; yMax: number } | null
+    }>
     followUpSuggestions: string[]
   }
+}
+
+export interface VisualSegmentationResponse {
+  requestId: string
+  model: string
+  analysisRequestId: string
+  objectId: string
+  imageWidth: number
+  imageHeight: number
+  mask: {
+    width: number
+    height: number
+    bounds: { left: number; top: number; right: number; bottom: number }
+    dataBase64: string
+  }
+}
+
+export interface VisualObjectExplanationResponse {
+  requestId: string
+  model: string
+  analysisRequestId: string
+  objectId: string
+  answer: string
 }
 
 export class VisualImageValidationError extends Error {
@@ -124,19 +164,22 @@ export class VisualUploadError extends Error {
 
 type XhrFactory = () => XMLHttpRequest
 
-export function uploadVisualImage(
+export function uploadVisualAction<T extends { success: true }>(
+  endpoint: string,
   file: File,
-  question: string,
+  fields: Record<string, string>,
   onProgress: (progress: UploadProgress) => void,
   createXhr: XhrFactory = () => new XMLHttpRequest(),
-): Promise<VisualUploadPayload> {
+): Promise<T> {
   return new Promise((resolve, reject) => {
     const xhr = createXhr()
     const form = new FormData()
     form.append("image", file, file.name || "image")
-    if (question.trim()) form.append("question", question.trim())
+    for (const [name, value] of Object.entries(fields)) {
+      if (value) form.append(name, value)
+    }
 
-    xhr.open("POST", "/api/visual-intelligence/analyze")
+    xhr.open("POST", endpoint)
     xhr.withCredentials = true
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable) return
@@ -165,13 +208,27 @@ export function uploadVisualImage(
         ))
         return
       }
-      if (!payload || typeof payload !== "object" || !("success" in payload) || !(payload as { success?: unknown }).success
-        || !("analysis" in payload)) {
+      if (!payload || typeof payload !== "object" || !("success" in payload) || !(payload as { success?: unknown }).success) {
         reject(new VisualUploadError("Rocky returned an incomplete analysis. Try again.", xhr.status, "invalid_response"))
         return
       }
-      resolve(payload as VisualUploadPayload)
+      resolve(payload as T)
     }
     xhr.send(form)
   })
+}
+
+export function uploadVisualImage(
+  file: File,
+  question: string,
+  onProgress: (progress: UploadProgress) => void,
+  createXhr: XhrFactory = () => new XMLHttpRequest(),
+): Promise<VisualUploadPayload> {
+  return uploadVisualAction<VisualUploadPayload>(
+    "/api/visual-intelligence/analyze",
+    file,
+    { question: question.trim() },
+    onProgress,
+    createXhr,
+  )
 }

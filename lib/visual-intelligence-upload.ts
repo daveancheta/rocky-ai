@@ -76,7 +76,7 @@ export async function validateUploadedVisualImage(file: File): Promise<Validated
 
 export interface VisualAnalysisHandlerDependencies {
   getSession: (headers: Headers) => Promise<unknown | null>
-  analyzeImage: (image: { bytes: Uint8Array; mimeType: string }, question?: string) => Promise<unknown>
+  analyzeImage: (image: { bytes: Uint8Array; mimeType: string }, question?: string, imageSize?: { width: number; height: number }) => Promise<unknown>
   logError?: (entry: Record<string, unknown>) => void
 }
 
@@ -156,8 +156,9 @@ export function createVisualAnalysisPostHandler(dependencies: VisualAnalysisHand
       const analysis = await dependencies.analyzeImage(
         { bytes: validated.bytes, mimeType: validated.mimeType },
         question || undefined,
+        { width: validated.width, height: validated.height },
       )
-      return Response.json({ success: true, requestId, analysis }, { headers: { "Cache-Control": "no-store" } })
+      return Response.json({ success: true, analysis: { ...analysis as object, imageWidth: validated.width, imageHeight: validated.height } }, { headers: { "Cache-Control": "no-store" } })
     } catch (error) {
       if (error instanceof VisualUploadValidationError) {
         return Response.json({ success: false, requestId, code: error.code, message: error.message }, { status: error.status })
@@ -178,6 +179,101 @@ export function createVisualAnalysisPostHandler(dependencies: VisualAnalysisHand
             : "Rocky could not analyze this image. Check your connection and retry."
       dependencies.logError?.({
         event: "visual_intelligence_upload",
+        requestId,
+        providerRequestId: typeof modelError?.requestId === "string" ? modelError.requestId : undefined,
+        code,
+        status,
+      })
+      return Response.json({ success: false, requestId, code, message }, { status, headers: { "Cache-Control": "no-store" } })
+    }
+  }
+}
+
+export interface VisualActionPostContext {
+  image: ValidatedVisualImage
+  fields: Record<string, string>
+  requestId: string
+}
+
+export interface VisualActionPostDependencies {
+  getSession: (headers: Headers) => Promise<unknown | null>
+  perform: (context: VisualActionPostContext) => Promise<Record<string, unknown>>
+  logError?: (entry: Record<string, unknown>) => void
+}
+
+export function createVisualActionPostHandler(dependencies: VisualActionPostDependencies) {
+  return async function POST(request: Request): Promise<Response> {
+    const requestId = crypto.randomUUID()
+    try {
+      const origin = request.headers.get("origin")
+      if (origin) {
+        try {
+          if (new URL(origin).host !== new URL(request.url).host) {
+            return Response.json({ success: false, code: "invalid_origin", message: "This request could not be verified. Refresh Rocky and try again." }, { status: 403 })
+          }
+        } catch {
+          return Response.json({ success: false, code: "invalid_origin", message: "This request could not be verified. Refresh Rocky and try again." }, { status: 403 })
+        }
+      }
+      const session = await dependencies.getSession(request.headers)
+      if (!session) {
+        return Response.json({ success: false, code: "unauthenticated", message: "Sign in to use Visual Intelligence." }, { status: 401 })
+      }
+      const contentType = request.headers.get("content-type") || ""
+      if (!contentType.toLowerCase().startsWith("multipart/form-data;")) {
+        return Response.json({ success: false, code: "invalid_content_type", message: "Send the image as a multipart upload." }, { status: 415 })
+      }
+      const contentLength = Number(request.headers.get("content-length"))
+      if (Number.isFinite(contentLength) && contentLength > MAX_MULTIPART_BYTES) {
+        return Response.json({ success: false, code: "file_too_large", message: "Choose an image no larger than 10 MB." }, { status: 413 })
+      }
+
+      let form: FormData
+      try {
+        form = await readMultipartForm(request)
+      } catch (error) {
+        if (error instanceof VisualUploadValidationError) {
+          return Response.json({ success: false, code: error.code, message: error.message }, { status: error.status })
+        }
+        return Response.json({ success: false, code: "invalid_multipart", message: "The upload could not be read. Try again." }, { status: 400 })
+      }
+      const imageValue = form.get("image")
+      if (!imageValue || typeof imageValue === "string" || typeof imageValue.arrayBuffer !== "function") {
+        return Response.json({ success: false, code: "missing_image", message: "Choose an image before continuing." }, { status: 400 })
+      }
+      const image = await validateUploadedVisualImage(imageValue as File)
+      const fields: Record<string, string> = {}
+      for (const [key, value] of form.entries()) {
+        if (key !== "image" && typeof value === "string") fields[key] = value
+      }
+      const result = await dependencies.perform({ image, fields, requestId })
+      return Response.json({ success: true, ...result }, { headers: { "Cache-Control": "no-store" } })
+    } catch (error) {
+      if (error instanceof VisualUploadValidationError) {
+        return Response.json({ success: false, requestId, code: error.code, message: error.message }, { status: error.status })
+      }
+      const modelError = error as { code?: unknown; status?: unknown; requestId?: unknown }
+      const code = typeof modelError?.code === "string" ? modelError.code : "analysis_failed"
+      const status = code === "missing_api_key" || code === "capability_disabled" || code === "unauthorized" || code === "forbidden"
+        ? 503
+        : code === "rate_limited" || modelError?.status === 429
+          ? 429
+          : code === "invalid_object_box" || code === "invalid_prompt"
+            ? 400
+            : code === "object_not_found"
+              ? 422
+              : 502
+      const message = code === "missing_api_key"
+        ? "Visual Intelligence is not configured yet. Ask your Rocky administrator to set MODEL_API_KEY."
+        : code === "capability_disabled"
+          ? "This model capability is currently disabled. Ask your Rocky administrator to enable it."
+          : code === "rate_limited"
+            ? "Rocky is receiving too many analysis requests. Wait a moment and retry."
+            : code === "object_not_found"
+              ? "SAM could not segment that object from the selected region. The original detection is still available."
+              : "Rocky could not complete this image action. Retry in a moment."
+      dependencies.logError?.({
+        event: "visual_intelligence_action",
         requestId,
         providerRequestId: typeof modelError?.requestId === "string" ? modelError.requestId : undefined,
         code,
