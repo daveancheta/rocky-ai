@@ -96,6 +96,14 @@ export function cameraAccessErrorMessage(error: unknown): string {
   return "The camera could not be started. You can choose an image to upload instead."
 }
 
+export async function requestVisualCamera(getUserMedia: () => Promise<MediaStream>): Promise<MediaStream> {
+  try {
+    return await getUserMedia()
+  } catch (error) {
+    throw new Error(cameraAccessErrorMessage(error))
+  }
+}
+
 export interface UploadProgress {
   loaded: number
   total: number

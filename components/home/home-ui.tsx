@@ -1,4 +1,5 @@
-import { Play } from "lucide-react"
+import Link from "next/link"
+import { Play, ScanEye } from "lucide-react"
 import { Card } from "@/components/ui/card"
 
 export function HomeUI() {
@@ -46,6 +47,13 @@ export function HomeUI() {
             <p className="presence-footnote">A quiet space, ready whenever you are.</p>
           </Card>
         </div>
+        <Link
+          href="/visual-intelligence"
+          className="inline-flex min-h-10 w-fit items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-sm font-medium text-foreground no-underline shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
+          <ScanEye size={16} aria-hidden="true" />
+          Explore Visual Intelligence
+        </Link>
       </div>
     </section>
   )

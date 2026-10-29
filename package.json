@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --conditions=react-server --import tsx --test tests/meta-model-api.test.ts",
+    "test": "node --conditions=react-server --import tsx --test tests/meta-model-api.test.ts tests/visual-intelligence.test.ts",
     "meta:check": "node --conditions=react-server --import tsx scripts/check-meta-models.ts"
   },
   "dependencies": {
