@@ -1,18 +1,11 @@
-import { loadEnvConfig } from "@next/env"
-import { defineConfig } from "drizzle-kit"
-
-loadEnvConfig(process.cwd())
-
-const connectionString = process.env.DATABASE_URL_UNPOOLED
-if (!connectionString) {
-  throw new Error("DATABASE_URL_UNPOOLED is required to run Drizzle migrations.")
-}
+import 'dotenv/config';
+import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
-  schema: "./lib/db/schema.ts",
-  out: "./drizzle",
-  dialect: "postgresql",
+  out: './drizzle',
+  schema: './db/schema.ts',
+  dialect: 'postgresql',
   dbCredentials: {
-    url: connectionString,
+    url: process.env.DATABASE_URL!,
   },
-})
+});

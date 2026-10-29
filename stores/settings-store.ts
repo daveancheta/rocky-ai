@@ -17,6 +17,7 @@ type SettingsStore = {
   quietHoursStart: string
   quietHoursEnd: string
   setPersonality: (personality: Personality) => void
+  setAppearance: (appearance: Appearance) => void
   setMicrophoneEnabled: (enabled: boolean) => void
   setCameraMonitoring: (enabled: boolean) => void
   setProactiveEnabled: (enabled: boolean) => void
@@ -42,6 +43,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   quietHoursEnabled: false,
   quietHoursStart: "22:00",
   quietHoursEnd: "08:00",
+  setAppearance: (appearance) => set({ appearance }),
   setPersonality: (personality) => set({ personality }),
   setMicrophoneEnabled: (microphoneEnabled) => set({ microphoneEnabled }),
   setCameraMonitoring: (cameraMonitoring) => set({ cameraMonitoring }),
