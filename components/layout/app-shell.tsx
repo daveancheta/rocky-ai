@@ -4,15 +4,11 @@ import Link from "next/link"
 import { ChevronRight, Home, Monitor, Moon, Sun } from "lucide-react"
 import { useEffect, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
-import { useSettingsStore, type Appearance } from "@/stores/settings-store"
+import { useThemeStore, type Appearance } from "@/stores/theme-store"
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const appearance = useSettingsStore((state) => state.appearance)
-  const setAppearance = useSettingsStore((state) => state.setAppearance)
-
-  useEffect(() => {
-    localStorage.removeItem("rocky-preferences")
-  }, [])
+  const appearance = useThemeStore((state) => state.appearance)
+  const setAppearance = useThemeStore((state) => state.setAppearance)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")

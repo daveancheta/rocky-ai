@@ -3,8 +3,8 @@ import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ROCKY — A little space for you",
-  description: "A thoughtful personal companion prototype.",
+  title: "Rocky — A little space for you",
+  description: "A quiet space, ready whenever you are.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
