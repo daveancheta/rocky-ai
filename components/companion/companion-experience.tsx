@@ -18,7 +18,6 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
   const experienceRef = useRef<HTMLElement>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [isStarting, setIsStarting] = useState(false)
-  const [settingsReady, setSettingsReady] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
   const sessionTokenRef = useRef(0)
@@ -68,14 +67,6 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
     stream.getTracks().forEach((track) => track.addEventListener("ended", onTrackEnded))
     return () => stream.getTracks().forEach((track) => track.removeEventListener("ended", onTrackEnded))
   }, [stopUnavailableCamera, stream])
-
-  useEffect(() => {
-    let active = true
-    void Promise.resolve(useSettingsStore.persist.rehydrate()).finally(() => {
-      if (active) setSettingsReady(true)
-    })
-    return () => { active = false }
-  }, [])
 
   useEffect(() => {
     const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === experienceRef.current)
@@ -161,7 +152,7 @@ export function CompanionExperience({ greeting }: { greeting: string }) {
       {stream && isActive && <VisionObserver stream={stream} onObservation={observe} onUnavailable={stopUnavailableCamera} />}
       <div className="companion-layout">
         <div className="companion-stage">
-          <RockyPresence onToggle={() => void toggle()} isStarting={isStarting} disabled={!settingsReady} />
+          <RockyPresence onToggle={() => void toggle()} isStarting={isStarting} disabled={false} />
         </div>
       </div>
     </section>

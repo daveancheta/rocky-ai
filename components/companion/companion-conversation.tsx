@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef } from "react"
-import Link from "next/link"
 import { LoaderCircle, Mic, VolumeX } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import { Button } from "@/components/ui/button"
@@ -159,7 +158,7 @@ export function CompanionConversation({ voiceReady }: { voiceReady: boolean }) {
           {voiceStatus === "recording" && <span className="auto-listening-wave" aria-hidden="true"><i /><i /><i /></span>}
         </div>}
         {status === "speaking" && <div className="companion-auto-listening is-speaking"><VolumeX size={15} /><span>ROCKY is speaking</span><Button type="button" variant="ghost" size="icon" className="companion-voice-button" onClick={() => stopCompanionSpeech()} aria-label="Stop Rocky speaking" title="Stop speaking"><VolumeX size={16} /></Button></div>}
-        {!microphoneEnabled && <p className="companion-input-hint">Voice conversation is off. <Link href="/settings">Enable it in Settings</Link>.</p>}
+        {!microphoneEnabled && <p className="companion-input-hint">Voice conversation is off.</p>}
       </div>}
     </div>
   )

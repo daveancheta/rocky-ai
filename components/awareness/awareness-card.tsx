@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUpRight, Lightbulb, X } from "lucide-react"
+import { Lightbulb, X } from "lucide-react"
 import { useAwarenessStore } from "@/stores/awareness-store"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,9 +23,6 @@ export function AwarenessCard() {
         <p>{observation.message}</p>
         <span className="awareness-time">{observation.time}</span>
       </div>
-      <a className="awareness-action" href="/memories" aria-label="Explore memories">
-        <ArrowUpRight size={16} />
-      </a>
       <Button
         variant="ghost"
         size="icon-sm"
