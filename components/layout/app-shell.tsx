@@ -1,17 +1,24 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronRight, Home, Monitor, Moon, Sun } from "lucide-react"
+import { ChevronRight, Home, LogOut, Monitor, Moon, Sun } from "lucide-react"
 import { useEffect, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { BrandMark } from "@/components/brand-mark"
 import { useThemeStore, type Appearance } from "@/stores/theme-store"
 import { AuthStore } from "@/stores/auth-store"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Card } from "@/components/ui/card"
 
 export function AppShell({ children }: { children: ReactNode }) {
   const appearance = useThemeStore((state) => state.appearance)
   const setAppearance = useThemeStore((state) => state.setAppearance)
-  const { signinWithGoogle } = AuthStore()
+  const { signinWithGoogle, handleGetSession, signOut, auth } = AuthStore()
+
+  useEffect(() => {
+    handleGetSession()
+  }, [handleGetSession])
+
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
@@ -32,6 +39,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     setAppearance(next)
   }
   const ThemeIcon = appearance === "dark" ? Moon : appearance === "system" ? Monitor : Sun
+  const userInitials = auth?.name
+    ?.trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || auth?.email?.charAt(0).toUpperCase() || "U"
 
   return (
     <div className="app-frame">
@@ -65,15 +79,36 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="theme-value">{appearance}</span>
               <ChevronRight className="theme-chevron" size={15} aria-hidden="true" />
             </Button>
-            <Button type="button" variant="outline" className="sidebar-google-button" onClick={signinWithGoogle}>
-              <svg aria-hidden="true" viewBox="0 0 48 48" width="18" height="18">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" />
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.91a11.04 11.04 0 0 1-4.79 7.24l7.72 5.99c4.5-4.15 7.14-10.27 7.14-17.7Z" />
-                <path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.94 23.94 0 0 0 0 24c0 3.89.93 7.58 2.56 10.78l7.97-6.19Z" />
-                <path fill="#34A853" d="M24 48c6.48 0 11.94-2.13 15.92-5.76l-7.72-5.99c-2.14 1.44-4.88 2.3-8.2 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
-              </svg>
-              <span>Continue with Google</span>
-            </Button>
+            {auth ? (
+              <div className="grid gap-1.5">
+                <Card className="sidebar-profile-card gap-2.5 p-2.5 ring-1" aria-label="Signed in profile">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Avatar className="sidebar-profile-avatar size-9">
+                      {auth.image && <AvatarImage src={auth.image} alt={auth.name || "Profile"} />}
+                      <AvatarFallback>{userInitials}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="sidebar-profile-name truncate">{auth.name || "Rocky user"}</p>
+                      <p className="sidebar-profile-email truncate">{auth.email}</p>
+                    </div>
+                  </div>
+                </Card>
+                <Button type="button" variant="ghost" className="sidebar-signout-button" onClick={signOut}>
+                  <LogOut aria-hidden="true" />
+                  <span>Sign out</span>
+                </Button>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" className="sidebar-google-button" onClick={signinWithGoogle}>
+                <svg aria-hidden="true" viewBox="0 0 48 48" width="18" height="18">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" />
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.91a11.04 11.04 0 0 1-4.79 7.24l7.72 5.99c4.5-4.15 7.14-10.27 7.14-17.7Z" />
+                  <path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.94 23.94 0 0 0 0 24c0 3.89.93 7.58 2.56 10.78l7.97-6.19Z" />
+                  <path fill="#34A853" d="M24 48c6.48 0 11.94-2.13 15.92-5.76l-7.72-5.99c-2.14 1.44-4.88 2.3-8.2 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
+                </svg>
+                <span>Continue with Google</span>
+              </Button>
+            )}
           </div>
         </div>
       </aside>
