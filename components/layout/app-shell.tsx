@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ChevronRight, Home, LogOut, Monitor, Moon, Sun } from "lucide-react"
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { BrandMark } from "@/components/brand-mark"
 import { useThemeStore, type Appearance } from "@/stores/theme-store"
@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const [themeHydrated, setThemeHydrated] = useState(false)
   const appearance = useThemeStore((state) => state.appearance)
   const setAppearance = useThemeStore((state) => state.setAppearance)
   const { signinWithGoogle, handleGetSession, signOut, auth, isLoading } = AuthStore()
@@ -20,8 +21,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     handleGetSession()
   }, [handleGetSession])
 
+  useEffect(() => {
+    let active = true
+    void Promise.resolve(useThemeStore.persist.rehydrate()).catch(() => undefined).finally(() => {
+      if (active) setThemeHydrated(true)
+    })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
+    if (!themeHydrated) return
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
     const applyTheme = () => {
       document.documentElement.classList.toggle(
@@ -32,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     applyTheme()
     mediaQuery.addEventListener("change", applyTheme)
     return () => mediaQuery.removeEventListener("change", applyTheme)
-  }, [appearance])
+  }, [appearance, themeHydrated])
 
   const cycleAppearance = () => {
     const next: Appearance =
