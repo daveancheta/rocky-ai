@@ -6,6 +6,7 @@ import Image from "next/image"
 import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, Layers3, LoaderCircle, RotateCcw, ScanEye, Search, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { MarkdownResponse } from "@/components/ui/markdown-response"
 import {
   cameraAccessErrorMessage,
   requestVisualCamera,
@@ -433,14 +434,14 @@ export function VisualIntelligenceForm() {
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{analysis.result.identificationConfidence} confidence</span>
             </div>
             <h3 className="mb-1 mt-0 text-sm font-semibold">Best-supported identification</h3>
-            <p className="mb-3 mt-0 text-sm leading-relaxed">{analysis.result.identification}</p>
-            <p className="m-0 text-sm leading-relaxed text-muted-foreground">{analysis.result.shortDescription}</p>
+            <MarkdownResponse className="mb-3 text-sm" content={analysis.result.identification} />
+            <MarkdownResponse className="text-sm text-muted-foreground" content={analysis.result.shortDescription} />
 
             {analysis.result.visualObservations.length > 0 && (
               <section className="mt-5 border-t border-border pt-4" aria-label="Visual observations">
                 <h3 className="mb-2 mt-0 text-sm font-semibold">Visible in the image</h3>
                 <ul className="mb-0 mt-0 grid gap-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  {analysis.result.visualObservations.map((detail, index) => <li key={`${index}-${detail}`}>{detail}</li>)}
+                  {analysis.result.visualObservations.map((detail, index) => <li key={`${index}-${detail}`}><MarkdownResponse content={detail} /></li>)}
                 </ul>
               </section>
             )}
@@ -448,7 +449,7 @@ export function VisualIntelligenceForm() {
               <section className="mt-4" aria-label="Distinguishing features">
                 <h3 className="mb-2 mt-0 text-sm font-semibold">Distinguishing features</h3>
                 <ul className="mb-0 mt-0 grid gap-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  {analysis.result.distinguishingFeatures.map((detail, index) => <li key={`${index}-${detail}`}>{detail}</li>)}
+                  {analysis.result.distinguishingFeatures.map((detail, index) => <li key={`${index}-${detail}`}><MarkdownResponse content={detail} /></li>)}
                 </ul>
               </section>
             )}
@@ -459,7 +460,7 @@ export function VisualIntelligenceForm() {
                   {analysis.result.contextNotes.map((note, index) => (
                     <div key={`${index}-${note.text}`} className="rounded-lg bg-muted/60 p-3">
                       <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{note.evidence === "visual_observation" ? "Visual observation" : note.evidence === "general_context" ? "General context" : "Needs external verification"}</span>
-                      <p className="mb-0 mt-1 text-sm leading-relaxed">{note.text}</p>
+                      <MarkdownResponse className="mt-1 text-sm" content={note.text} />
                     </div>
                   ))}
                 </div>
@@ -468,8 +469,8 @@ export function VisualIntelligenceForm() {
             {(analysis.result.uncertainty || analysis.result.alternatives.length > 0) && (
               <section className="mt-4 rounded-lg border border-border p-3" aria-label="Uncertainty">
                 <h3 className="mb-1 mt-0 text-sm font-semibold">Uncertainty</h3>
-                <p className="m-0 text-sm leading-relaxed text-muted-foreground">{analysis.result.uncertainty}</p>
-                {analysis.result.alternatives.length > 0 && <p className="mb-0 mt-2 text-sm leading-relaxed text-muted-foreground">Other possibilities: {analysis.result.alternatives.join(" · ")}</p>}
+                {analysis.result.uncertainty && <MarkdownResponse className="text-sm text-muted-foreground" content={analysis.result.uncertainty} />}
+                {analysis.result.alternatives.length > 0 && <MarkdownResponse className="mt-2 text-sm text-muted-foreground" content={`Other possibilities: ${analysis.result.alternatives.join(", ")}`} />}
               </section>
             )}
 
@@ -515,7 +516,7 @@ export function VisualIntelligenceForm() {
                 </div>
                 {!selectedObject.bbox && <p className="mb-0 mt-2 text-xs text-muted-foreground">SAM needs a visible location; Rocky could not confidently place a box around this object.</p>}
                 {actionError && <p role="alert" className="mb-0 mt-3 text-sm text-destructive">{actionError}</p>}
-                {explanation && <div className="mt-3 rounded-lg border border-border bg-card p-3"><p className="mb-1 mt-0 text-xs font-semibold text-muted-foreground">Muse Spark · {explanation.model}</p><p className="m-0 whitespace-pre-wrap text-sm leading-relaxed">{explanation.answer}</p></div>}
+                {explanation && <div className="mt-3 rounded-lg border border-border bg-card p-3"><p className="mb-1 mt-0 text-xs font-semibold text-muted-foreground">Muse Spark · {explanation.model}</p><MarkdownResponse className="text-sm" content={explanation.answer} /></div>}
                 {segmentation && <p className="mb-0 mt-2 text-xs text-muted-foreground">The colored overlay shows the SAM 3.1 mask aligned to the original image.</p>}
               </section>
             )}
@@ -555,9 +556,9 @@ export function VisualIntelligenceForm() {
                     <h4 className="m-0 text-sm font-semibold">{publicInformation.result.title}</h4>
                     <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{publicInformation.model}</span>
                   </div>
-                  {publicInformation.result.status === "results" && <p className="mb-3 mt-0 whitespace-pre-wrap text-sm leading-relaxed">{publicInformation.result.summary}</p>}
+                  {publicInformation.result.status === "results" && <MarkdownResponse className="mb-3 text-sm" content={publicInformation.result.summary} />}
                   {publicInformation.result.status === "no_results" && <p className="mb-3 mt-0 text-sm leading-relaxed text-muted-foreground">Search ran, but no useful public sources were returned. Try a more specific search focus.</p>}
-                  {publicInformation.result.status === "ambiguous" && <div className="mb-3 rounded-lg bg-muted/60 p-3"><p className="m-0 text-sm leading-relaxed">{publicInformation.result.clarificationQuestion || "Several public people may match that name. Add a profession, organization, location, or official identifier and search again."}</p></div>}
+                  {publicInformation.result.status === "ambiguous" && <div className="mb-3 rounded-lg bg-muted/60 p-3"><MarkdownResponse className="text-sm" content={publicInformation.result.clarificationQuestion || "Several public people may match that name. Add a profession, organization, location, or official identifier and search again."} /></div>}
                   {publicInformation.result.status === "unavailable" && <p className="mb-3 mt-0 text-sm leading-relaxed text-muted-foreground">Search grounding did not run, so Rocky did not retrieve or verify public information. Ask your administrator to check Meta search access.</p>}
                   {analysis.result.category === "person" && publicInformation.result.status !== "unavailable" && <p className="mb-3 mt-0 text-xs leading-relaxed text-muted-foreground">These pages have not been matched to the person in your photo. A name or appearance alone does not verify an account or identity.</p>}
                   {publicInformation.result.sources.length > 0 && (
