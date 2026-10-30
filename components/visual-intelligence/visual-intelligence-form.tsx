@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, Layers3, LoaderCircle, Maximize2, Minimize2, RotateCcw, ScanEye, Search, SwitchCamera, Trash2, Upload, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, LoaderCircle, Maximize2, Minimize2, RotateCcw, ScanEye, Search, SwitchCamera, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { MarkdownResponse } from "@/components/ui/markdown-response"
@@ -22,7 +22,6 @@ import {
   type VisualAnalysisResponse,
   type PublicInformationResponse,
   type VisualObjectExplanationResponse,
-  type VisualSegmentationResponse,
 } from "@/lib/visual-intelligence-client"
 
 type SubmitState = "idle" | "uploading" | "analyzing" | "success" | "error"
@@ -41,10 +40,9 @@ export function VisualIntelligenceForm() {
   const [freeLimitReached, setFreeLimitReached] = useState(false)
   const [analysis, setAnalysis] = useState<VisualAnalysisResponse | null>(null)
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null)
-  const [segmentation, setSegmentation] = useState<VisualSegmentationResponse | null>(null)
   const [explanation, setExplanation] = useState<VisualObjectExplanationResponse | null>(null)
   const [objectQuestion, setObjectQuestion] = useState("")
-  const [actionLoading, setActionLoading] = useState<"segment" | "explain" | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState("")
   const [previewUrl, setPreviewUrl] = useState("")
   const [cameraMessage, setCameraMessage] = useState("")
@@ -91,7 +89,6 @@ export function VisualIntelligenceForm() {
     setCameraMessage("")
     setAnalysis(null)
     setSelectedObjectId(null)
-    setSegmentation(null)
     setExplanation(null)
     setActionError("")
     setObjectQuestion("")
@@ -219,7 +216,6 @@ export function VisualIntelligenceForm() {
     setError("")
     setAnalysis(null)
     setSelectedObjectId(null)
-    setSegmentation(null)
     setExplanation(null)
     setPublicInformation(null)
     setPublicInformationError("")
@@ -248,7 +244,6 @@ export function VisualIntelligenceForm() {
         })
       }
       setSelectedObjectId(response.analysis.result.objects.length === 1 ? response.analysis.result.objects[0].id : null)
-      setSegmentation(null)
       setExplanation(null)
       setState("success")
     } catch (uploadError) {
@@ -261,9 +256,9 @@ export function VisualIntelligenceForm() {
   const busy = state === "uploading" || state === "analyzing"
   const selectedObject = analysis?.result.objects.find((object) => object.id === selectedObjectId) ?? null
 
-  const runObjectAction = async (action: "segment" | "explain") => {
+  const runObjectAction = async () => {
     if (!file || !analysis || !selectedObject || actionLoading) return
-    setActionLoading(action)
+    setActionLoading(true)
     setActionError("")
     try {
       const fields = {
@@ -273,24 +268,13 @@ export function VisualIntelligenceForm() {
         bbox: selectedObject.bbox ? JSON.stringify(selectedObject.bbox) : "",
         question: objectQuestion.trim(),
       }
-      if (action === "segment") {
-        if (!selectedObject.bbox) throw new Error("Rocky could not locate this object precisely enough to draw a mask.")
-        const response = await uploadVisualAction<{ success: true; segmentation: VisualSegmentationResponse }>(
-          "/api/visual-intelligence/segment", file, fields, () => undefined,
-        )
-        if (response.segmentation.analysisRequestId !== analysis.requestId || response.segmentation.objectId !== selectedObject.id) {
-          throw new Error("The mask did not match this image analysis. Try again.")
-        }
-        setSegmentation(response.segmentation)
-      } else {
-        const response = await uploadVisualAction<{ success: true; explanation: VisualObjectExplanationResponse }>(
-          "/api/visual-intelligence/explain", file, fields, () => undefined,
-        )
-        if (response.explanation.analysisRequestId !== analysis.requestId || response.explanation.objectId !== selectedObject.id) {
-          throw new Error("The explanation did not match this image analysis. Try again.")
-        }
-        setExplanation(response.explanation)
+      const response = await uploadVisualAction<{ success: true; explanation: VisualObjectExplanationResponse }>(
+        "/api/visual-intelligence/explain", file, fields, () => undefined,
+      )
+      if (response.explanation.analysisRequestId !== analysis.requestId || response.explanation.objectId !== selectedObject.id) {
+        throw new Error("The explanation did not match this image analysis. Try again.")
       }
+      setExplanation(response.explanation)
     } catch (actionFailure) {
       setActionError(actionFailure instanceof Error ? actionFailure.message : "Rocky could not complete this object action. Try again.")
     } finally {
@@ -318,7 +302,6 @@ export function VisualIntelligenceForm() {
     }
   }
 
-  const maskCanvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     if (!analysis) return
     const updateFullscreenLayout = () => {
@@ -353,45 +336,6 @@ export function VisualIntelligenceForm() {
       setFullscreenError("Rocky could not open the image in full screen.")
     }
   }
-
-  useEffect(() => {
-    const canvas = maskCanvasRef.current
-    if (!canvas || !segmentation || !analysis) return
-    const scale = Math.min(1, 1600 / analysis.imageWidth)
-    canvas.width = Math.max(1, Math.round(analysis.imageWidth * scale))
-    canvas.height = Math.max(1, Math.round(analysis.imageHeight * scale))
-    const context = canvas.getContext("2d")
-    if (!context) return
-    context.clearRect(0, 0, canvas.width, canvas.height)
-
-    const raster = Uint8Array.from(atob(segmentation.mask.dataBase64), (character) => character.charCodeAt(0))
-    if (raster.length !== segmentation.mask.width * segmentation.mask.height) return
-    const maskCanvas = document.createElement("canvas")
-    maskCanvas.width = segmentation.mask.width
-    maskCanvas.height = segmentation.mask.height
-    const maskContext = maskCanvas.getContext("2d")
-    if (!maskContext) return
-    const maskPixels = maskContext.createImageData(maskCanvas.width, maskCanvas.height)
-    for (let index = 0; index < raster.length; index++) {
-      if (raster[index] === 0) continue
-      const offset = index * 4
-      maskPixels.data[offset] = 180
-      maskPixels.data[offset + 1] = 72
-      maskPixels.data[offset + 2] = 13
-      maskPixels.data[offset + 3] = 135
-    }
-    maskContext.putImageData(maskPixels, 0, 0)
-    const xScale = canvas.width / analysis.imageWidth
-    const yScale = canvas.height / analysis.imageHeight
-    const bounds = segmentation.mask.bounds
-    context.drawImage(
-      maskCanvas,
-      bounds.left * xScale,
-      bounds.top * yScale,
-      (bounds.right - bounds.left) * xScale,
-      (bounds.bottom - bounds.top) * yScale,
-    )
-  }, [analysis, segmentation])
 
   return (
     <div className="visual-intelligence-form mx-auto grid w-full max-w-3xl gap-5">
@@ -545,7 +489,6 @@ export function VisualIntelligenceForm() {
                     </span>
                   </div>
                 ))}
-                <canvas ref={maskCanvasRef} aria-label={segmentation ? `SAM 3.1 mask for ${selectedObject?.label ?? "selected object"}` : undefined} className="pointer-events-none absolute inset-0 h-full w-full" />
               </div>
               <Button type="button" variant="secondary" size="sm" className="analysis-fullscreen-button gap-2 px-3" onClick={() => void toggleAnalysisFullscreen()} aria-label={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"} title={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"}>
                 {analysisFullscreen ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
@@ -553,7 +496,7 @@ export function VisualIntelligenceForm() {
               </Button>
             </div>
             {fullscreenError && <p role="alert" className="mb-4 mt-0 text-sm text-destructive">{fullscreenError}</p>}
-            <p className="mb-4 mt-0 text-xs text-muted-foreground">Bounding boxes from {analysis.model}{segmentation && ` · Segmentation mask from ${segmentation.model}`}</p>
+            <p className="mb-4 mt-0 text-xs text-muted-foreground">Detected object locations from {analysis.model}</p>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{analysis.result.category}</span>
@@ -630,7 +573,6 @@ export function VisualIntelligenceForm() {
                       type="button"
                       onClick={() => {
                         setSelectedObjectId(object.id)
-                        setSegmentation(null)
                         setExplanation(null)
                         setActionError("")
                       }}
@@ -648,21 +590,15 @@ export function VisualIntelligenceForm() {
             {selectedObject && (
               <section className="mt-4 rounded-lg bg-muted/50 p-3" aria-label={`Actions for ${selectedObject.label}`}>
                 <label htmlFor="object-question" className="mb-1.5 block text-sm font-medium">Ask about {selectedObject.label}</label>
-                <textarea id="object-question" rows={2} maxLength={2000} value={objectQuestion} onChange={(event) => setObjectQuestion(event.target.value.slice(0, 2000))} placeholder="What might this be used for?" disabled={actionLoading !== null} className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
+                <textarea id="object-question" rows={2} maxLength={2000} value={objectQuestion} onChange={(event) => setObjectQuestion(event.target.value.slice(0, 2000))} placeholder="What might this be used for?" disabled={actionLoading} className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" disabled={actionLoading !== null || !selectedObject.bbox} onClick={() => void runObjectAction("segment")}>
-                    {actionLoading === "segment" ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Layers3 aria-hidden="true" />}
-                    {actionLoading === "segment" ? "Segmenting…" : segmentation ? "Refresh SAM mask" : "Outline with SAM 3.1"}
-                  </Button>
-                  <Button type="button" variant="outline" disabled={actionLoading !== null} onClick={() => void runObjectAction("explain")}>
-                    {actionLoading === "explain" ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <ScanEye aria-hidden="true" />}
-                    {actionLoading === "explain" ? "Explaining…" : "Explain this object"}
+                  <Button type="button" variant="outline" disabled={actionLoading} onClick={() => void runObjectAction()}>
+                    {actionLoading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <ScanEye aria-hidden="true" />}
+                    {actionLoading ? "Explaining…" : "Explain this object"}
                   </Button>
                 </div>
-                {!selectedObject.bbox && <p className="mb-0 mt-2 text-xs text-muted-foreground">SAM needs a visible location; Rocky could not confidently place a box around this object.</p>}
                 {actionError && <p role="alert" className="mb-0 mt-3 text-sm text-destructive">{actionError}</p>}
                 {explanation && <div className="mt-3 rounded-lg border border-border bg-card p-3"><p className="mb-1 mt-0 text-xs font-semibold text-muted-foreground">Muse Spark · {explanation.model}</p><MarkdownResponse className="text-sm" content={explanation.answer} /></div>}
-                {segmentation && <p className="mb-0 mt-2 text-xs text-muted-foreground">The colored overlay shows the SAM 3.1 mask aligned to the original image.</p>}
               </section>
             )}
 
