@@ -314,7 +314,7 @@ export function VisualIntelligenceForm() {
   }, [analysis, segmentation])
 
   return (
-    <div className="mx-auto grid w-full max-w-3xl gap-5">
+    <div className="visual-intelligence-form mx-auto grid w-full max-w-3xl gap-5">
       <Card className="gap-0 border border-border p-4 ring-0 sm:p-6">
         <div className="mb-5 flex items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-secondary-foreground">
@@ -351,7 +351,7 @@ export function VisualIntelligenceForm() {
             <div className="overflow-hidden rounded-xl border border-border bg-muted">
               <video ref={videoRef} autoPlay playsInline muted className="aspect-video max-h-[460px] w-full object-contain" aria-label="Camera preview" />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="mobile-stack-actions flex flex-wrap items-center gap-2">
               <Button type="button" onClick={() => void capturePhoto()}><Camera aria-hidden="true" /> Capture photo</Button>
               <Button type="button" variant="outline" className="sm:hidden" onClick={() => void flipCamera()}><SwitchCamera aria-hidden="true" /> Switch to {cameraFacingMode === "environment" ? "front" : "rear"} camera</Button>
               <Button type="button" variant="outline" onClick={stopCamera}><X aria-hidden="true" /> Cancel camera</Button>
@@ -363,7 +363,7 @@ export function VisualIntelligenceForm() {
               <Image src={previewUrl} alt={`Selected image: ${file.name}`} width={1200} height={800} unoptimized className="mx-auto max-h-[460px] w-full object-contain" />
               <span className="absolute bottom-3 left-3 max-w-[75%] truncate rounded-md bg-background/90 px-2.5 py-1.5 text-xs text-foreground shadow-sm">{file.name}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="mobile-stack-actions flex flex-wrap items-center gap-2">
               <Button type="button" variant="outline" disabled={busy} onClick={() => void openCamera()}><RotateCcw aria-hidden="true" /> Retake photo</Button>
               <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><ImagePlus aria-hidden="true" /> Replace image</Button>
               <Button type="button" variant="ghost" disabled={busy} onClick={() => chooseFile(null)}><Trash2 aria-hidden="true" /> Remove</Button>
@@ -377,7 +377,7 @@ export function VisualIntelligenceForm() {
                 <p className="m-0 text-sm font-medium">Start with a photo</p>
                 <p className="mb-0 mt-1 text-xs text-muted-foreground">JPEG, PNG, or WebP · up to 10 MB</p>
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="mobile-stack-actions flex flex-wrap justify-center gap-2">
                 <Button type="button" variant="outline" onClick={() => void openCamera()}><Camera aria-hidden="true" /> Take a photo</Button>
                 <Button type="button" onClick={() => inputRef.current?.click()}><Upload aria-hidden="true" /> Choose image</Button>
               </div>
@@ -409,7 +409,7 @@ export function VisualIntelligenceForm() {
           disabled={busy}
           className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60"
         />
-        <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>Rocky will focus on what can be seen in the image.</span><span>{question.length}/2,000</span></div>
+        <div className="visual-question-meta mt-1 flex justify-between gap-2 text-xs text-muted-foreground"><span>Rocky will focus on what can be seen in the image.</span><span className="shrink-0">{question.length}/2,000</span></div>
 
         {busy && (
           <div className="mt-4" role="status" aria-live="polite">
@@ -423,7 +423,7 @@ export function VisualIntelligenceForm() {
           </div>
         )}
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <div className="visual-submit-row mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <p className="m-0 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><Check size={14} className="mt-0.5 shrink-0" aria-hidden="true" />Your image is processed for this request and not stored.</p>
           <Button type="button" disabled={!file || busy} onClick={() => void submit()}>
             {busy ? <><LoaderCircle className="animate-spin" aria-hidden="true" />{state === "analyzing" ? "Analyzing…" : "Uploading…"}</> : state === "error" ? <><RotateCcw aria-hidden="true" />Retry analysis</> : <><ScanEye aria-hidden="true" />Analyze image</>}
@@ -434,7 +434,7 @@ export function VisualIntelligenceForm() {
       {analysis && state === "success" && (
         <>
           <Card className="gap-0 border border-border p-4 ring-0 sm:p-6" aria-live="polite">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="visual-analysis-heading mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <span className="grid size-9 place-items-center rounded-lg bg-secondary text-secondary-foreground"><Check size={18} aria-hidden="true" /></span>
                 <div><span className="eyebrow">ROCKY&apos;S ANALYSIS</span><h2 className="mb-0 mt-1 text-lg font-medium">{analysis.result.title}</h2></div>
@@ -442,7 +442,7 @@ export function VisualIntelligenceForm() {
               <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{analysis.model}</span>
             </div>
 
-            <div className="relative mx-auto mb-5 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
+            <div className="analysis-image-frame relative mx-auto mb-5 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
               <Image src={previewUrl} alt="Original uploaded image with detected object locations" fill unoptimized className="object-contain" />
               {analysis.result.objects.map((object, index) => object.bbox && (
                 <div

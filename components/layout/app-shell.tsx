@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-frame">
-      {mobileSidebarOpen && <button type="button" className="mobile-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setMobileSidebarOpen(false)} />}
+      <button type="button" className={`mobile-sidebar-backdrop${mobileSidebarOpen ? " mobile-open" : ""}`} aria-label="Close navigation menu" tabIndex={mobileSidebarOpen ? 0 : -1} onClick={() => setMobileSidebarOpen(false)} />
       <aside id="primary-sidebar" className={`sidebar${mobileSidebarOpen ? " mobile-open" : ""}`}>
         <Link href="/" className="brand" aria-label="Rocky home">
           <span>rocky<span className="brand-period">.</span></span>
