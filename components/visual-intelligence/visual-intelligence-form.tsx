@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, Layers3, LoaderCircle, RotateCcw, ScanEye, Search, SwitchCamera, Trash2, Upload, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, Layers3, LoaderCircle, Maximize2, Minimize2, RotateCcw, ScanEye, Search, SwitchCamera, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { MarkdownResponse } from "@/components/ui/markdown-response"
@@ -52,11 +52,15 @@ export function VisualIntelligenceForm() {
   const [publicInformation, setPublicInformation] = useState<PublicInformationResponse | null>(null)
   const [publicInformationLoading, setPublicInformationLoading] = useState(false)
   const [publicInformationError, setPublicInformationError] = useState("")
+  const [analysisFullscreen, setAnalysisFullscreen] = useState(false)
+  const [fullscreenImageSize, setFullscreenImageSize] = useState({ width: 0, height: 0 })
+  const [fullscreenError, setFullscreenError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const fallbackCameraRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const previewUrlRef = useRef("")
+  const analysisFrameRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (cameraActive && videoRef.current && streamRef.current) {
@@ -275,6 +279,41 @@ export function VisualIntelligenceForm() {
 
   const maskCanvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
+    if (!analysis) return
+    const updateFullscreenLayout = () => {
+      const isFullscreen = document.fullscreenElement === analysisFrameRef.current
+      setAnalysisFullscreen(isFullscreen)
+      if (!isFullscreen) return
+      const ratio = analysis.imageWidth / analysis.imageHeight
+      const width = Math.min(window.innerWidth, window.innerHeight * ratio)
+      setFullscreenImageSize({ width, height: width / ratio })
+    }
+    document.addEventListener("fullscreenchange", updateFullscreenLayout)
+    window.addEventListener("resize", updateFullscreenLayout)
+    return () => {
+      document.removeEventListener("fullscreenchange", updateFullscreenLayout)
+      window.removeEventListener("resize", updateFullscreenLayout)
+    }
+  }, [analysis])
+
+  const toggleAnalysisFullscreen = async () => {
+    const frame = analysisFrameRef.current
+    if (!frame) return
+    setFullscreenError("")
+    try {
+      if (document.fullscreenElement === frame) {
+        await document.exitFullscreen()
+      } else if (frame.requestFullscreen) {
+        await frame.requestFullscreen()
+      } else {
+        setFullscreenError("Full screen is not supported in this browser.")
+      }
+    } catch {
+      setFullscreenError("Rocky could not open the image in full screen.")
+    }
+  }
+
+  useEffect(() => {
     const canvas = maskCanvasRef.current
     if (!canvas || !segmentation || !analysis) return
     const scale = Math.min(1, 1600 / analysis.imageWidth)
@@ -442,26 +481,32 @@ export function VisualIntelligenceForm() {
               <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{analysis.model}</span>
             </div>
 
-            <div className="analysis-image-frame relative mx-auto mb-5 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
-              <Image src={previewUrl} alt="Original uploaded image with detected object locations" fill unoptimized className="object-contain" />
-              {analysis.result.objects.map((object, index) => object.bbox && (
-                <div
-                  key={object.id}
-                  aria-hidden="true"
-                  className={`absolute ${object.id === selectedObjectId ? "border-[3px]" : "border-2"}`}
-                  style={{
-                    left: `${object.bbox.xMin / 10}%`,
-                    top: `${object.bbox.yMin / 10}%`,
-                    width: `${(object.bbox.xMax - object.bbox.xMin) / 10}%`,
-                    height: `${(object.bbox.yMax - object.bbox.yMin) / 10}%`,
-                    borderColor: detectionColors[index % detectionColors.length],
-                  }}
-                >
-                  <span className="absolute left-0 top-0 -translate-y-full rounded-t px-1.5 py-0.5 text-[10px] font-medium text-black" style={{ backgroundColor: detectionColors[index % detectionColors.length] }}>{object.label}</span>
-                </div>
-              ))}
-              <canvas ref={maskCanvasRef} aria-label={segmentation ? `SAM 3.1 mask for ${selectedObject?.label ?? "selected object"}` : undefined} className="pointer-events-none absolute inset-0 h-full w-full" />
+            <div ref={analysisFrameRef} className="analysis-image-frame relative mx-auto mb-5 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
+              <div className="analysis-image-content relative" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}`, width: analysisFullscreen ? `${fullscreenImageSize.width}px` : "100%", height: analysisFullscreen ? `${fullscreenImageSize.height}px` : "100%" }}>
+                <Image src={previewUrl} alt="Original uploaded image with detected object locations" fill unoptimized className="object-contain" />
+                {analysis.result.objects.map((object, index) => object.bbox && (
+                  <div
+                    key={object.id}
+                    aria-hidden="true"
+                    className={`absolute ${object.id === selectedObjectId ? "border-[3px]" : "border-2"}`}
+                    style={{
+                      left: `${object.bbox.xMin / 10}%`,
+                      top: `${object.bbox.yMin / 10}%`,
+                      width: `${(object.bbox.xMax - object.bbox.xMin) / 10}%`,
+                      height: `${(object.bbox.yMax - object.bbox.yMin) / 10}%`,
+                      borderColor: detectionColors[index % detectionColors.length],
+                    }}
+                  >
+                    <span className="absolute left-0 top-0 -translate-y-full rounded-t px-1.5 py-0.5 text-[10px] font-medium text-black" style={{ backgroundColor: detectionColors[index % detectionColors.length] }}>{object.label}</span>
+                  </div>
+                ))}
+                <canvas ref={maskCanvasRef} aria-label={segmentation ? `SAM 3.1 mask for ${selectedObject?.label ?? "selected object"}` : undefined} className="pointer-events-none absolute inset-0 h-full w-full" />
+              </div>
+              <Button type="button" variant="secondary" size="icon" className="analysis-fullscreen-button" onClick={() => void toggleAnalysisFullscreen()} aria-label={analysisFullscreen ? "Exit full screen" : "View image full screen"} title={analysisFullscreen ? "Exit full screen" : "View image full screen"}>
+                {analysisFullscreen ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+              </Button>
             </div>
+            {fullscreenError && <p role="alert" className="mb-4 mt-0 text-sm text-destructive">{fullscreenError}</p>}
             <p className="mb-4 mt-0 text-xs text-muted-foreground">Bounding boxes from {analysis.model}{segmentation && ` · Segmentation mask from ${segmentation.model}`}</p>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
