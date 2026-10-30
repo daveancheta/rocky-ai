@@ -1,11 +1,13 @@
 import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
+    // Read request-specific data before the catch block so Next.js can use it
+    // to bail out of prerendering this session-dependent route.
+    const requestHeaders = request.headers;
     try {
         const session = await auth.api.getSession({
-            headers: await headers()
+            headers: requestHeaders
         })
 
         if (!session) {
