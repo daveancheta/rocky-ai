@@ -539,13 +539,17 @@ export function VisualIntelligenceForm() {
                       borderColor: detectionColors[index % detectionColors.length],
                     }}
                   >
-                    <span className="absolute left-0 top-0 -translate-y-full rounded-t px-1.5 py-0.5 text-[10px] font-medium text-black" style={{ backgroundColor: detectionColors[index % detectionColors.length] }}>{object.label}</span>
+                    <span className="absolute left-1 top-1 z-10 inline-flex max-w-[min(18rem,80vw)] items-center gap-1.5 rounded-md border border-white/15 bg-slate-950/85 px-2 py-1 text-[11px] font-medium leading-tight tracking-[0.01em] text-white shadow-lg shadow-black/20 backdrop-blur-sm">
+                      <span className="size-1.5 shrink-0 rounded-full ring-2 ring-white/20" style={{ backgroundColor: detectionColors[index % detectionColors.length] }} />
+                      <span className="truncate">{object.label}</span>
+                    </span>
                   </div>
                 ))}
                 <canvas ref={maskCanvasRef} aria-label={segmentation ? `SAM 3.1 mask for ${selectedObject?.label ?? "selected object"}` : undefined} className="pointer-events-none absolute inset-0 h-full w-full" />
               </div>
-              <Button type="button" variant="secondary" size="icon" className="analysis-fullscreen-button" onClick={() => void toggleAnalysisFullscreen()} aria-label={analysisFullscreen ? "Exit full screen" : "View image full screen"} title={analysisFullscreen ? "Exit full screen" : "View image full screen"}>
-                {analysisFullscreen ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+              <Button type="button" variant="secondary" size="sm" className="analysis-fullscreen-button gap-2 px-3" onClick={() => void toggleAnalysisFullscreen()} aria-label={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"} title={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"}>
+                {analysisFullscreen ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
+                <span>{analysisFullscreen ? "Exit full screen" : "Full screen"}</span>
               </Button>
             </div>
             {fullscreenError && <p role="alert" className="mb-4 mt-0 text-sm text-destructive">{fullscreenError}</p>}
