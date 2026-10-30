@@ -278,7 +278,7 @@ export function VisualIntelligenceForm() {
     } catch (actionFailure) {
       setActionError(actionFailure instanceof Error ? actionFailure.message : "Rocky could not complete this object action. Try again.")
     } finally {
-      setActionLoading(null)
+      setActionLoading(false)
     }
   }
 
