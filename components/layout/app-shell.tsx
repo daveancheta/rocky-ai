@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronRight, Home, LogOut, Menu, Monitor, Moon, Sun, X } from "lucide-react"
+import { ChevronRight, Clock3, Home, LogOut, Menu, Monitor, Moon, Sun, X } from "lucide-react"
+import { usePathname } from "next/navigation"
 import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { BrandMark } from "@/components/brand-mark"
@@ -14,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 export function AppShell({ children }: { children: ReactNode }) {
   const [themeHydrated, setThemeHydrated] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const pathname = usePathname()
   const appearance = useThemeStore((state) => state.appearance)
   const setAppearance = useThemeStore((state) => state.setAppearance)
   const { signinWithGoogle, handleGetSession, signOut, auth, isLoading } = AuthStore()
@@ -69,10 +71,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-workspace">
           <span className="sidebar-label">WORKSPACE</span>
           <nav className="sidebar-nav" aria-label="Main navigation">
-            <Link href="/" aria-current="page" className="nav-link active" onClick={() => setMobileSidebarOpen(false)}>
+            <Link href="/" aria-current={pathname === "/" ? "page" : undefined} className={`nav-link${pathname === "/" ? " active" : ""}`} onClick={() => setMobileSidebarOpen(false)}>
               <Home size={17} strokeWidth={1.8} aria-hidden="true" />
               <span>Home</span>
-              <span className="nav-indicator" />
+              {pathname === "/" && <span className="nav-indicator" />}
+            </Link>
+            <Link href="/history" aria-current={pathname === "/history" ? "page" : undefined} className={`nav-link${pathname === "/history" ? " active" : ""}`} onClick={() => setMobileSidebarOpen(false)}>
+              <Clock3 size={17} strokeWidth={1.8} aria-hidden="true" />
+              <span>Recent analyses</span>
+              {pathname === "/history" && <span className="nav-indicator" />}
             </Link>
           </nav>
         </div>

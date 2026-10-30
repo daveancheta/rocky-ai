@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { MarkdownResponse } from "@/components/ui/markdown-response"
 import { AuthStore } from "@/stores/auth-store"
+import { getVisualAnalysisHistoryItem, saveVisualAnalysisHistory } from "@/lib/visual-analysis-history"
 import {
   cameraAccessErrorMessage,
   requestVisualCamera,
@@ -29,7 +30,7 @@ type SubmitState = "idle" | "uploading" | "analyzing" | "success" | "error"
 const detectionColors = ["#fb923c", "#38bdf8", "#a3e635", "#e879f9", "#facc15", "#2dd4bf", "#f87171", "#818cf8"]
 
 export function VisualIntelligenceForm() {
-  const { auth, signinWithGoogle } = AuthStore()
+  const { auth, isLoading: authLoading, signinWithGoogle } = AuthStore()
   const [file, setFile] = useState<File | null>(null)
   const [question, setQuestion] = useState("")
   const [cameraActive, setCameraActive] = useState(false)
@@ -55,6 +56,7 @@ export function VisualIntelligenceForm() {
   const [analysisFullscreen, setAnalysisFullscreen] = useState(false)
   const [fullscreenImageSize, setFullscreenImageSize] = useState({ width: 0, height: 0 })
   const [fullscreenError, setFullscreenError] = useState("")
+  const [historyNotice, setHistoryNotice] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const fallbackCameraRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -97,6 +99,7 @@ export function VisualIntelligenceForm() {
     setPublicInformationFocus("")
     setPublicInformation(null)
     setPublicInformationError("")
+    setHistoryNotice("")
     setState("idle")
     setProgress(null)
     setFile(next)
@@ -119,6 +122,29 @@ export function VisualIntelligenceForm() {
     void acceptFile(event.target.files?.[0] ?? null)
     event.target.value = ""
   }
+
+  useEffect(() => {
+    if (authLoading || !auth) return
+    const historyId = new URLSearchParams(window.location.search).get("historyId")
+    if (!historyId) return
+    let canceled = false
+    void getVisualAnalysisHistoryItem(auth.id, historyId).then((item) => {
+      if (canceled) return
+      if (!item) {
+        setError("That saved analysis could not be found in this account’s browser history.")
+        return
+      }
+      chooseFile(new File([item.image], item.imageName, { type: item.image.type || "image/jpeg" }))
+      setQuestion(item.question)
+      setHistoryNotice("Saved photo loaded. Run the analysis again whenever you’re ready.")
+      const url = new URL(window.location.href)
+      url.searchParams.delete("historyId")
+      window.history.replaceState({}, "", url)
+    }).catch(() => {
+      if (!canceled) setError("Rocky could not open the saved photo from this browser.")
+    })
+    return () => { canceled = true }
+  }, [auth, authLoading])
 
   const openCamera = async () => {
     setError("")
@@ -206,6 +232,21 @@ export function VisualIntelligenceForm() {
         if (nextProgress.percent >= 100) setState("analyzing")
       })
       setAnalysis(response.analysis)
+      if (auth?.id) {
+        void saveVisualAnalysisHistory({
+          id: response.analysis.requestId,
+          userId: auth.id,
+          createdAt: new Date().toISOString(),
+          imageName: file.name,
+          image: file,
+          question,
+          analysis: response.analysis,
+        }).then(() => {
+          setHistoryNotice("Saved to your recent analyses on this device.")
+        }).catch(() => {
+          setHistoryNotice("Analysis completed, but Rocky could not save it to this device’s history.")
+        })
+      }
       setSelectedObjectId(response.analysis.result.objects.length === 1 ? response.analysis.result.objects[0].id : null)
       setSegmentation(null)
       setExplanation(null)
@@ -436,6 +477,7 @@ export function VisualIntelligenceForm() {
             </div>
           </div>
         )}
+        {historyNotice && <p role="status" className="mb-0 mt-3 text-xs leading-relaxed text-muted-foreground">{historyNotice}</p>}
 
         <label htmlFor="visual-question" className="mb-1.5 mt-5 text-sm font-medium">Ask Rocky a question <span className="font-normal text-muted-foreground">(optional)</span></label>
         <textarea
