@@ -554,6 +554,25 @@ export function VisualIntelligenceForm() {
               </section>
             )}
 
+            {analysis.result.actionableFindings && analysis.result.actionableFindings.length > 0 && (
+              <section className="mt-5 border-t border-border pt-4" aria-label="Visible issues and possible improvements">
+                <h3 className="mb-2 mt-0 text-sm font-semibold">Issues and possible improvements</h3>
+                <div className="grid gap-2">
+                  {analysis.result.actionableFindings.map((finding, index) => (
+                    <article key={`${index}-${finding.observation}`} className="rounded-lg border border-border bg-muted/40 p-3">
+                      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">{finding.kind === "issue" ? "Possible issue" : "Possible improvement"}</span>
+                        <span className="text-[10px] text-muted-foreground">{finding.confidence} confidence</span>
+                      </div>
+                      <MarkdownResponse className="text-sm" content={`**Visible:** ${finding.observation}`} />
+                      <MarkdownResponse className="mt-1 text-sm text-muted-foreground" content={`**Suggestion:** ${finding.suggestion}`} />
+                    </article>
+                  ))}
+                </div>
+                <p className="mb-0 mt-2 text-xs leading-relaxed text-muted-foreground">These are visual suggestions, not a professional inspection or diagnosis.</p>
+              </section>
+            )}
+
             {analysis.result.objects.length > 0 && (
               <section className="mt-5 border-t border-border pt-4" aria-labelledby="detected-objects-title">
                 <h3 id="detected-objects-title" className="mb-2 mt-0 text-sm font-semibold">Detected objects</h3>

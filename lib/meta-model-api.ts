@@ -59,6 +59,13 @@ export interface VisualContextNote {
   evidence: "visual_observation" | "general_context" | "requires_external_verification"
 }
 
+export interface VisualActionableFinding {
+  kind: "issue" | "improvement"
+  observation: string
+  suggestion: string
+  confidence: VisualConfidence
+}
+
 export interface VisualAnalysis {
   title: string
   category: "object" | "animal" | "plant" | "landmark" | "product" | "person" | "other"
@@ -70,6 +77,7 @@ export interface VisualAnalysis {
   contextNotes: VisualContextNote[]
   uncertainty: string
   alternatives: string[]
+  actionableFindings?: VisualActionableFinding[]
   objects: DetectedVisualObject[]
   followUpSuggestions: string[]
 }
@@ -155,6 +163,20 @@ const visualAnalysisSchema = {
     },
     uncertainty: { type: "string" },
     alternatives: { type: "array", items: { type: "string" } },
+    actionableFindings: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          kind: { type: "string", enum: ["issue", "improvement"] },
+          observation: { type: "string" },
+          suggestion: { type: "string" },
+          confidence: { type: "string", enum: ["low", "medium", "high"] },
+        },
+        required: ["kind", "observation", "suggestion", "confidence"],
+      },
+    },
     objects: {
       type: "array",
       items: {
@@ -188,7 +210,7 @@ const visualAnalysisSchema = {
   },
   required: [
     "title", "category", "identification", "identificationConfidence", "shortDescription", "visualObservations",
-    "distinguishingFeatures", "contextNotes", "uncertainty", "alternatives", "objects", "followUpSuggestions",
+    "distinguishingFeatures", "contextNotes", "uncertainty", "alternatives", "actionableFindings", "objects", "followUpSuggestions",
   ],
 } as const
 
@@ -308,6 +330,20 @@ function parseVisualAnalysis(value: string): VisualAnalysis {
     })
     : []
 
+  const actionableFindings: VisualActionableFinding[] = Array.isArray(record.actionableFindings)
+    ? record.actionableFindings.slice(0, 8).flatMap((value) => {
+      if (!value || typeof value !== "object") return []
+      const item = value as Record<string, unknown>
+      if ((item.kind !== "issue" && item.kind !== "improvement")
+        || typeof item.observation !== "string" || !item.observation.trim()
+        || typeof item.suggestion !== "string" || !item.suggestion.trim()) return []
+      const confidence: VisualConfidence = confidenceLevels.includes(item.confidence as VisualConfidence)
+        ? item.confidence as VisualConfidence
+        : "low"
+      return [{ kind: item.kind, observation: item.observation.trim(), suggestion: item.suggestion.trim(), confidence }]
+    })
+    : []
+
   return {
     title: title || identification || "Image analysis",
     category,
@@ -321,6 +357,7 @@ function parseVisualAnalysis(value: string): VisualAnalysis {
       ? record.uncertainty.trim()
       : "Some details may be uncertain from this image alone.",
     alternatives: textList(record.alternatives, 8),
+    actionableFindings,
     objects,
     followUpSuggestions: textList(record.followUpSuggestions, 8),
   }
@@ -466,7 +503,8 @@ function createMetaModelApi(options: MetaModelApiOptions = {}) {
     const userQuestion = question ? assertPrompt(question, "Question", 2_000) : "Describe and analyze the main subject in this image."
     const prompt = [
       userQuestion,
-      "Return a short title; general category; best-supported identification and confidence; concise description; visible observations; distinguishing features; useful common context; uncertainty and plausible alternatives; follow-up questions; and a list of clearly visible objects.",
+      "Return a short title; general category; best-supported identification and confidence; concise description; visible observations; distinguishing features; useful common context; uncertainty and plausible alternatives; actionable findings; follow-up questions; and a list of clearly visible objects.",
+      "Review the visible surroundings for concrete problems and practical opportunities to improve the setting. Add an actionable finding only when it is grounded in visible evidence; pair a brief observation with a safe, low-risk suggestion and confidence. Return an empty list when no useful issue or improvement is apparent. Do not invent hazards or diagnose people, medical conditions, structural faults, electrical faults, fire risks, or food safety. If an image suggests a potentially serious safety concern, describe only what is visibly apparent and recommend assessment by a qualified professional; do not give hazardous repair instructions. For images containing people, do not critique their appearance; keep findings focused on objects and surroundings.",
       "For each visible object, provide a short label, category, confidence, and bounding box on a normalized 0–1000 grid where (0,0) is top-left and (1000,1000) is bottom-right. If an object's location cannot be grounded, set its bbox to null. Do not invent objects or precise identities.",
       imageSize ? `Coordinates refer to the full image as sent, dimensions ${imageSize.width} by ${imageSize.height} pixels after orientation.` : "Coordinates refer to the full image as sent.",
       "Keep direct visual observations separate from general context. Mark facts that need checking outside the image as requires_external_verification.",
@@ -476,7 +514,7 @@ function createMetaModelApi(options: MetaModelApiOptions = {}) {
       const response = await getClient(id).responses.create({
         model,
         store: false,
-        instructions: "You are Rocky's careful visual analyst. Analyze only what this image supports. Never identify a person's identity, social profile, sensitive traits, or emotional state; for people, describe only visible non-sensitive characteristics and scene context. For animals, identify species only when evidence supports it and distinguish uncertain breed or individual claims. For products, do not claim an exact model unless clearly supported by visible markings. If the image is blurry, occluded, ambiguous, or too small, say so plainly, lower confidence, and give alternatives instead of guessing. Common-use information is general context, not proof about this exact item. Return the requested structured result.",
+        instructions: "You are Rocky's careful visual analyst. Analyze only what this image supports. Never identify a person's identity, social profile, sensitive traits, or emotional state; for people, describe only visible non-sensitive characteristics and scene context. For animals, identify species only when evidence supports it and distinguish uncertain breed or individual claims. For products, do not claim an exact model unless clearly supported by visible markings. If the image is blurry, occluded, ambiguous, or too small, say so plainly, lower confidence, and give alternatives instead of guessing. Treat issue detection as a visual observation, not a professional diagnosis. Do not invent problems or recommend risky actions. Common-use information is general context, not proof about this exact item. Return the requested structured result.",
         input: [{
           type: "message",
           role: "user",

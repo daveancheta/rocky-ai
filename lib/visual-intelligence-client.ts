@@ -30,6 +30,12 @@ export interface VisualAnalysisResponse {
     }>
     uncertainty: string
     alternatives: string[]
+    actionableFindings?: Array<{
+      kind: "issue" | "improvement"
+      observation: string
+      suggestion: string
+      confidence: "low" | "medium" | "high"
+    }>
     objects: Array<{
       id: string
       label: string
