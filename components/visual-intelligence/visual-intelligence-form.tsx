@@ -532,20 +532,20 @@ export function VisualIntelligenceForm() {
             )}
 
             <section className="mt-5 border-t border-border pt-4" aria-labelledby="public-information-title">
-              <h3 id="public-information-title" className="mb-1 mt-0 text-sm font-semibold">Public information</h3>
-              <p className="mb-3 mt-0 text-sm leading-relaxed text-muted-foreground">Search public sources related to Rocky&apos;s visual analysis. Search results are separate from what the image itself shows.</p>
+              <h3 id="public-information-title" className="mb-1 mt-0 text-sm font-semibold">{analysis.result.category === "person" ? "Want me to look this person up on the web?" : "Public information"}</h3>
+              <p className="mb-3 mt-0 text-sm leading-relaxed text-muted-foreground">{analysis.result.category === "person" ? "I can search public web sources using a name or public details you provide. I can’t identify someone from their face or confirm that a search result is the person in this photo." : "Search public sources related to Rocky’s visual analysis. Search results are separate from what the image itself shows."}</p>
               {analysis.result.category === "person" && (
                 <div className="mb-3 rounded-lg border border-border bg-muted/40 p-3">
-                  <label htmlFor="public-person-name" className="mb-1.5 block text-sm font-medium">Enter a name or public identifier</label>
-                  <input id="public-person-name" value={publicPersonName} maxLength={200} onChange={(event) => setPublicPersonName(event.target.value.slice(0, 200))} placeholder="Name, role, organization, or official identifier" disabled={publicInformationLoading} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
-                  <p className="mb-0 mt-2 text-xs leading-relaxed text-muted-foreground">Rocky will search only the details you enter. Search results are not matched to the person in your photo, and account verification must be checked on the linked publisher or platform.</p>
+                  <label htmlFor="public-person-name" className="mb-1.5 block text-sm font-medium">What name or public details should I search?</label>
+                  <input id="public-person-name" value={publicPersonName} maxLength={200} onChange={(event) => setPublicPersonName(event.target.value.slice(0, 200))} placeholder="Name, profession, organization, or public identifier" disabled={publicInformationLoading} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
+                  <p className="mb-0 mt-2 text-xs leading-relaxed text-muted-foreground">Search results are about the details you provide; they are not matched to the face in the photo.</p>
                 </div>
               )}
               <label htmlFor="public-information-focus" className="mb-1.5 block text-sm font-medium">What would you like to know? <span className="font-normal text-muted-foreground">(optional)</span></label>
               <input id="public-information-focus" value={publicInformationFocus} maxLength={1000} onChange={(event) => setPublicInformationFocus(event.target.value.slice(0, 1000))} placeholder={analysis.result.category === "animal" ? "Habitat, diet, behavior, or conservation" : analysis.result.category === "product" ? "Manufacturer, purpose, or official documentation" : "History, background, or reliable references"} disabled={publicInformationLoading} className="mb-3 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60" />
               <Button type="button" variant="outline" disabled={publicInformationLoading || (analysis.result.category === "person" && !publicPersonName.trim())} onClick={() => void findPublicInformation()}>
                 {publicInformationLoading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
-                {publicInformationLoading ? "Searching public sources…" : publicInformationError ? "Retry public search" : "Find public information"}
+                {publicInformationLoading ? "Searching public sources…" : publicInformationError ? "Retry public search" : analysis.result.category === "person" ? "Search the web" : "Find public information"}
               </Button>
               {publicInformationLoading && <p role="status" aria-live="polite" className="mb-0 mt-3 text-sm text-muted-foreground">Searching public sources. This can take a moment.</p>}
               {publicInformationError && <p role="alert" className="mb-0 mt-3 flex items-start gap-2 text-sm text-destructive"><AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />{publicInformationError}</p>}
