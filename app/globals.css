@@ -118,6 +118,7 @@
 .page-header h1 { margin: 11px 0 5px; font-size: clamp(32px, 4vw, 42px); line-height: 1.1; font-weight: 500; letter-spacing: -1.5px; }
 .page-header p { margin: 0; color: var(--taupe); font-size: 13px; line-height: 1.65; }
 .mobile-header { display: none; }
+.mobile-sidebar-backdrop { display: none; }
 .home-page { padding-top: 40px; }
 .home-header { align-items: center; }
 .companion-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 20px; width: min(100%, 860px); margin: 0 auto; }
@@ -148,11 +149,11 @@
 
 @media (max-width: 900px) {
   .sidebar { display: none; }
+  .sidebar.mobile-open { position: fixed; inset: 58px auto 0 0; z-index: 20; display: flex; width: min(84vw, 300px); padding: 24px 16px 18px; box-shadow: 12px 0 32px rgb(0 0 0 / 18%); }
+  .mobile-sidebar-backdrop { position: fixed; inset: 58px 0 0; z-index: 19; display: block; border: 0; background: rgb(0 0 0 / 42%); }
   .main-content { margin-left: 0; }
   .mobile-header { position: sticky; top: 0; z-index: 15; display: flex; height: 58px; align-items: center; justify-content: space-between; padding: 0 clamp(22px, 4vw, 36px); border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--background) 94%, transparent); backdrop-filter: blur(12px); }
   .mobile-header .brand { font-size: 21px; }
-  .mobile-status { display: inline-flex; align-items: center; gap: 8px; color: var(--taupe); font-size: 10px; }
-  .mobile-status .status-dot { width: 6px; height: 6px; }
 }
 @media (max-width: 600px) {
   .page, .home-page { padding: 25px 19px 28px; }

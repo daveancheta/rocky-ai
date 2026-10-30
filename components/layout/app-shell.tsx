@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronRight, Home, LogOut, Monitor, Moon, Sun } from "lucide-react"
+import { ChevronRight, Home, LogOut, Menu, Monitor, Moon, Sun, X } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { BrandMark } from "@/components/brand-mark"
@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [themeHydrated, setThemeHydrated] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const appearance = useThemeStore((state) => state.appearance)
   const setAppearance = useThemeStore((state) => state.setAppearance)
   const { signinWithGoogle, handleGetSession, signOut, auth, isLoading } = AuthStore()
@@ -59,7 +60,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-frame">
-      <aside className="sidebar">
+      {mobileSidebarOpen && <button type="button" className="mobile-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setMobileSidebarOpen(false)} />}
+      <aside id="primary-sidebar" className={`sidebar${mobileSidebarOpen ? " mobile-open" : ""}`}>
         <Link href="/" className="brand" aria-label="Rocky home">
           <span>rocky<span className="brand-period">.</span></span>
         </Link>
@@ -67,7 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-workspace">
           <span className="sidebar-label">WORKSPACE</span>
           <nav className="sidebar-nav" aria-label="Main navigation">
-            <Link href="/" aria-current="page" className="nav-link active">
+            <Link href="/" aria-current="page" className="nav-link active" onClick={() => setMobileSidebarOpen(false)}>
               <Home size={17} strokeWidth={1.8} aria-hidden="true" />
               <span>Home</span>
               <span className="nav-indicator" />
@@ -143,7 +145,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <BrandMark size={30} />
           <span>rocky<span className="brand-period">.</span></span>
         </Link>
-        <span className="mobile-status"><span className="status-dot" /> Demo mode</span>
+        <Button type="button" variant="ghost" size="icon" aria-label={mobileSidebarOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileSidebarOpen} aria-controls="primary-sidebar" onClick={() => setMobileSidebarOpen((open) => !open)}>
+          {mobileSidebarOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+        </Button>
       </div>
       <main className="main-content">{children}</main>
     </div>
