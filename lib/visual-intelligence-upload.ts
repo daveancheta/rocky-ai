@@ -1,5 +1,6 @@
 import "server-only"
 
+import { createHmac, timingSafeEqual } from "node:crypto"
 import sharp, { type Metadata } from "sharp"
 import {
   MAX_VISUAL_IMAGE_BYTES,
@@ -119,8 +120,9 @@ export function createVisualAnalysisPostHandler(dependencies: VisualAnalysisHand
       }
 
       const session = await dependencies.getSession(request.headers)
-      if (!session) {
-        return Response.json({ success: false, code: "unauthenticated", message: "Sign in to analyze an image." }, { status: 401 })
+      const anonymousUsage = session ? null : readAnonymousAnalysisUsage(request.headers.get("cookie"))
+      if (!session && anonymousUsage !== null && anonymousUsage.count >= 2) {
+        return Response.json({ success: false, code: "free_limit_reached", message: "You’ve used both free analyses. Sign in to keep analyzing images." }, { status: 401, headers: { "Cache-Control": "no-store" } })
       }
 
       const contentType = request.headers.get("content-type") || ""
@@ -158,7 +160,19 @@ export function createVisualAnalysisPostHandler(dependencies: VisualAnalysisHand
         question || undefined,
         { width: validated.width, height: validated.height },
       )
-      return Response.json({ success: true, analysis: { ...analysis as object, imageWidth: validated.width, imageHeight: validated.height } }, { headers: { "Cache-Control": "no-store" } })
+      const headers = new Headers({ "Cache-Control": "no-store" })
+      if (!session) {
+        const count = (anonymousUsage?.count ?? 0) + 1
+        const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365
+        const payload = `${count}.${expiresAt}`
+        const secret = getAnonymousAnalysisSecret()
+        if (secret) {
+          const signature = createHmac("sha256", secret).update(payload).digest("hex")
+          const secure = process.env.NODE_ENV === "production" ? "; Secure" : ""
+          headers.append("Set-Cookie", `rocky_free_analysis=${payload}.${signature}; Max-Age=31536000; Path=/; HttpOnly; SameSite=Lax${secure}`)
+        }
+      }
+      return Response.json({ success: true, analysis: { ...analysis as object, imageWidth: validated.width, imageHeight: validated.height } }, { headers })
     } catch (error) {
       if (error instanceof VisualUploadValidationError) {
         return Response.json({ success: false, requestId, code: error.code, message: error.message }, { status: error.status })
@@ -187,6 +201,23 @@ export function createVisualAnalysisPostHandler(dependencies: VisualAnalysisHand
       return Response.json({ success: false, requestId, code, message }, { status, headers: { "Cache-Control": "no-store" } })
     }
   }
+}
+
+function getAnonymousAnalysisSecret(): string | null {
+  return process.env.BETTER_AUTH_SECRET || process.env.MODEL_API_KEY || null
+}
+
+function readAnonymousAnalysisUsage(cookieHeader: string | null): { count: number } | null {
+  const token = cookieHeader?.split(";").map((part) => part.trim()).find((part) => part.startsWith("rocky_free_analysis="))?.slice("rocky_free_analysis=".length)
+  if (!token) return null
+  const [countValue, expiresValue, signature] = token.split(".")
+  const count = Number(countValue)
+  const expiresAt = Number(expiresValue)
+  const secret = getAnonymousAnalysisSecret()
+  if (!secret || !Number.isSafeInteger(count) || count < 0 || !Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000) || !/^[a-f0-9]{64}$/.test(signature || "")) return null
+  const expected = createHmac("sha256", secret).update(`${count}.${expiresAt}`).digest()
+  const supplied = Buffer.from(signature, "hex")
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected) ? { count } : null
 }
 
 export interface VisualActionPostContext {

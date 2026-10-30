@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, Layers3, LoaderCircle, RotateCcw, ScanEye, Search, Trash2, Upload, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, Layers3, LoaderCircle, RotateCcw, ScanEye, Search, SwitchCamera, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { MarkdownResponse } from "@/components/ui/markdown-response"
+import { AuthStore } from "@/stores/auth-store"
 import {
   cameraAccessErrorMessage,
   requestVisualCamera,
@@ -15,6 +16,7 @@ import {
   uploadVisualImage,
   validateVisualImageFile,
   VisualImageValidationError,
+  VisualUploadError,
   type UploadProgress,
   type VisualAnalysisResponse,
   type PublicInformationResponse,
@@ -27,12 +29,15 @@ type SubmitState = "idle" | "uploading" | "analyzing" | "success" | "error"
 const detectionColors = ["#fb923c", "#38bdf8", "#a3e635", "#e879f9", "#facc15", "#2dd4bf", "#f87171", "#818cf8"]
 
 export function VisualIntelligenceForm() {
+  const { auth, signinWithGoogle } = AuthStore()
   const [file, setFile] = useState<File | null>(null)
   const [question, setQuestion] = useState("")
   const [cameraActive, setCameraActive] = useState(false)
+  const [cameraFacingMode, setCameraFacingMode] = useState<"environment" | "user">("environment")
   const [state, setState] = useState<SubmitState>("idle")
   const [progress, setProgress] = useState<UploadProgress | null>(null)
   const [error, setError] = useState("")
+  const [freeLimitReached, setFreeLimitReached] = useState(false)
   const [analysis, setAnalysis] = useState<VisualAnalysisResponse | null>(null)
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null)
   const [segmentation, setSegmentation] = useState<VisualSegmentationResponse | null>(null)
@@ -76,6 +81,7 @@ export function VisualIntelligenceForm() {
     previewUrlRef.current = next ? URL.createObjectURL(next) : ""
     setPreviewUrl(previewUrlRef.current)
     setError("")
+    setFreeLimitReached(false)
     setCameraMessage("")
     setAnalysis(null)
     setSelectedObjectId(null)
@@ -112,6 +118,7 @@ export function VisualIntelligenceForm() {
 
   const openCamera = async () => {
     setError("")
+    setFreeLimitReached(false)
     setCameraMessage("")
     if (!navigator.mediaDevices?.getUserMedia) {
       fallbackCameraRef.current?.click()
@@ -120,11 +127,34 @@ export function VisualIntelligenceForm() {
     try {
       const stream = await requestVisualCamera(() => navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: "environment" } },
+        video: { facingMode: { ideal: cameraFacingMode } },
       }))
       streamRef.current = stream
       setCameraActive(true)
     } catch (cameraError) {
+      setCameraMessage(cameraError instanceof Error ? cameraError.message : cameraAccessErrorMessage(cameraError))
+    }
+  }
+
+  const flipCamera = async () => {
+    const nextFacingMode = cameraFacingMode === "environment" ? "user" : "environment"
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    setCameraMessage("")
+    try {
+      const stream = await requestVisualCamera(() => navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: nextFacingMode } },
+      }))
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        void videoRef.current.play().catch(() => undefined)
+      }
+      setCameraFacingMode(nextFacingMode)
+      setCameraActive(true)
+    } catch (cameraError) {
+      setCameraActive(false)
       setCameraMessage(cameraError instanceof Error ? cameraError.message : cameraAccessErrorMessage(cameraError))
     }
   }
@@ -178,6 +208,7 @@ export function VisualIntelligenceForm() {
       setState("success")
     } catch (uploadError) {
       setState("error")
+      setFreeLimitReached(uploadError instanceof VisualUploadError && uploadError.code === "free_limit_reached")
       setError(uploadError instanceof Error ? uploadError.message : "Rocky could not analyze this image. Try again.")
     }
   }
@@ -322,6 +353,7 @@ export function VisualIntelligenceForm() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" onClick={() => void capturePhoto()}><Camera aria-hidden="true" /> Capture photo</Button>
+              <Button type="button" variant="outline" className="sm:hidden" onClick={() => void flipCamera()}><SwitchCamera aria-hidden="true" /> Switch to {cameraFacingMode === "environment" ? "front" : "rear"} camera</Button>
               <Button type="button" variant="outline" onClick={stopCamera}><X aria-hidden="true" /> Cancel camera</Button>
             </div>
           </div>
@@ -359,7 +391,10 @@ export function VisualIntelligenceForm() {
         {error && (
           <div role="alert" className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive">
             <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-            <p className="m-0">{error}</p>
+            <div className="grid gap-2">
+              <p className="m-0">{error}</p>
+              {freeLimitReached && !auth && <Button type="button" variant="outline" className="w-fit" onClick={() => void signinWithGoogle()}>Continue with Google</Button>}
+            </div>
           </div>
         )}
 
@@ -580,8 +615,6 @@ export function VisualIntelligenceForm() {
           </Card>
         </>
       )}
-
-      <Link href="/" className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground no-underline hover:text-foreground"><ArrowLeft size={15} aria-hidden="true" />Back to Home</Link>
     </div>
   )
 }
