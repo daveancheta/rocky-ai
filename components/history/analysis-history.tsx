@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { ArrowLeft, Clock3, LoaderCircle, ScanEye, Trash2 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { GoogleIcon } from "@/components/ui/google-icon"
 import { Card } from "@/components/ui/card"
 import {
   deleteVisualAnalysisHistoryItem,
@@ -105,7 +106,7 @@ export function AnalysisHistory() {
             <h2 className="m-0 text-base font-semibold">Sign in to keep an analysis history</h2>
             <p className="mb-0 mt-1 text-sm text-muted-foreground">Rocky doesn’t save analyses while you’re signed out.</p>
           </div>
-          <Button type="button" onClick={() => void signinWithGoogle()}>Continue with Google</Button>
+          <Button type="button" onClick={() => void signinWithGoogle()}><GoogleIcon />Continue with Google</Button>
         </Card>
       ) : error ? (
         <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>

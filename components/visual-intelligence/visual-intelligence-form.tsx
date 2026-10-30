@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { AlertCircle, ArrowLeft, Camera, Check, ExternalLink, ImagePlus, LoaderCircle, Maximize2, Minimize2, RotateCcw, ScanEye, Search, SwitchCamera, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { GoogleIcon } from "@/components/ui/google-icon"
 import { Card } from "@/components/ui/card"
 import { MarkdownResponse } from "@/components/ui/markdown-response"
 import { AuthStore } from "@/stores/auth-store"
@@ -417,7 +418,7 @@ export function VisualIntelligenceForm() {
             <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
             <div className="grid gap-2">
               <p className="m-0">{error}</p>
-              {freeLimitReached && !auth && <Button type="button" variant="outline" className="w-fit" onClick={() => void signinWithGoogle()}>Continue with Google</Button>}
+              {freeLimitReached && !auth && <Button type="button" variant="outline" className="w-fit" onClick={() => void signinWithGoogle()}><GoogleIcon />Continue with Google</Button>}
             </div>
           </div>
         )}

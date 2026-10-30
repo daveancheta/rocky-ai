@@ -5,6 +5,7 @@ import { ChevronRight, Clock3, Home, LogOut, Menu, Monitor, Moon, Sun, X } from 
 import { usePathname } from "next/navigation"
 import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
+import { GoogleIcon } from "@/components/ui/google-icon"
 import { BrandMark } from "@/components/brand-mark"
 import { useThemeStore, type Appearance } from "@/stores/theme-store"
 import { AuthStore } from "@/stores/auth-store"
@@ -134,6 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             ) : (
               <Button type="button" variant="outline" className="sidebar-google-button" onClick={signinWithGoogle}>
+                <GoogleIcon />
                 <span>Continue with Google</span>
               </Button>
             )}
