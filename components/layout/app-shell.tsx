@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { GoogleIcon } from "@/components/ui/google-icon"
-import { BrandMark } from "@/components/brand-mark"
 import { useThemeStore, type Appearance } from "@/stores/theme-store"
 import { AuthStore } from "@/stores/auth-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -144,10 +143,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="mobile-header">
-        <Link href="/" className="brand" aria-label="Rocky home">
-          <BrandMark size={30} />
-          <span>rocky<span className="brand-period">.</span></span>
-        </Link>
         <Button type="button" variant="ghost" size="icon" aria-label={mobileSidebarOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileSidebarOpen} aria-controls="primary-sidebar" onClick={() => setMobileSidebarOpen((open) => !open)}>
           {mobileSidebarOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
         </Button>

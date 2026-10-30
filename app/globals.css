@@ -155,7 +155,7 @@
 .presence-footnote { margin: 13px 0 0; color: var(--taupe); text-align: center; font-size: 10px; }
 
 @media (max-width: 900px) {
-  .sidebar { position: fixed; inset: 58px 0 0 auto; z-index: 20; display: flex; width: min(84vw, 300px); padding: 24px 16px 18px; border-right: 0; border-left: 1px solid var(--border); transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: -12px 0 32px rgb(0 0 0 / 18%); transition: transform 260ms cubic-bezier(.2,.8,.2,1), visibility 0s linear 260ms; }
+  .sidebar { position: fixed; inset: 58px 0 0 auto; z-index: 20; display: flex; width: 100vw; padding: 24px 16px 18px; border-right: 0; border-left: 1px solid var(--border); transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: -12px 0 32px rgb(0 0 0 / 18%); transition: transform 260ms cubic-bezier(.2,.8,.2,1), visibility 0s linear 260ms; }
   .sidebar.mobile-open { transform: translateX(0); visibility: visible; pointer-events: auto; transition: transform 260ms cubic-bezier(.2,.8,.2,1), visibility 0s; }
   .mobile-sidebar-backdrop { position: fixed; inset: 58px 0 0; z-index: 19; display: block; border: 0; background: rgb(0 0 0 / 42%); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 220ms ease, visibility 0s linear 220ms; }
   .mobile-sidebar-backdrop.mobile-open { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 220ms ease, visibility 0s; }
