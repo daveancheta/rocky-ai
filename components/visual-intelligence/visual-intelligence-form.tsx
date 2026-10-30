@@ -23,6 +23,8 @@ import {
 
 type SubmitState = "idle" | "uploading" | "analyzing" | "success" | "error"
 
+const detectionColors = ["#fb923c", "#38bdf8", "#a3e635", "#e879f9", "#facc15", "#2dd4bf", "#f87171", "#818cf8"]
+
 export function VisualIntelligenceForm() {
   const [file, setFile] = useState<File | null>(null)
   const [question, setQuestion] = useState("")
@@ -406,19 +408,20 @@ export function VisualIntelligenceForm() {
 
             <div className="relative mx-auto mb-5 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
               <Image src={previewUrl} alt="Original uploaded image with detected object locations" fill unoptimized className="object-contain" />
-              {analysis.result.objects.map((object) => object.bbox && (
+              {analysis.result.objects.map((object, index) => object.bbox && (
                 <div
                   key={object.id}
                   aria-hidden="true"
-                  className={`absolute border-2 ${object.id === selectedObjectId ? "border-primary" : "border-primary/60"}`}
+                  className={`absolute ${object.id === selectedObjectId ? "border-[3px]" : "border-2"}`}
                   style={{
                     left: `${object.bbox.xMin / 10}%`,
                     top: `${object.bbox.yMin / 10}%`,
                     width: `${(object.bbox.xMax - object.bbox.xMin) / 10}%`,
                     height: `${(object.bbox.yMax - object.bbox.yMin) / 10}%`,
+                    borderColor: detectionColors[index % detectionColors.length],
                   }}
                 >
-                  <span className="absolute left-0 top-0 -translate-y-full rounded-t bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">{object.label}</span>
+                  <span className="absolute left-0 top-0 -translate-y-full rounded-t px-1.5 py-0.5 text-[10px] font-medium text-black" style={{ backgroundColor: detectionColors[index % detectionColors.length] }}>{object.label}</span>
                 </div>
               ))}
               <canvas ref={maskCanvasRef} aria-label={segmentation ? `SAM 3.1 mask for ${selectedObject?.label ?? "selected object"}` : undefined} className="pointer-events-none absolute inset-0 h-full w-full" />
