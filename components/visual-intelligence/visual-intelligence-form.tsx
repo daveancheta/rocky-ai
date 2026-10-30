@@ -310,7 +310,8 @@ export function VisualIntelligenceForm() {
       setAnalysisFullscreen(isFullscreen)
       if (!isFullscreen) return
       const ratio = analysis.imageWidth / analysis.imageHeight
-      const width = Math.min(window.innerWidth, window.innerHeight * ratio)
+      const maxHeight = Math.max(1, window.innerHeight - 76)
+      const width = Math.min(Math.max(1, window.innerWidth - 32), maxHeight * ratio)
       setFullscreenImageSize({ width, height: width / ratio })
     }
     document.addEventListener("fullscreenchange", updateFullscreenLayout)
@@ -468,33 +469,37 @@ export function VisualIntelligenceForm() {
               <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{analysis.model}</span>
             </div>
 
-            <div ref={analysisFrameRef} className="analysis-image-frame relative mx-auto mb-5 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
-              <div className="analysis-image-content relative" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}`, width: analysisFullscreen ? `${fullscreenImageSize.width}px` : "100%", height: analysisFullscreen ? `${fullscreenImageSize.height}px` : "100%" }}>
-                <Image src={previewUrl} alt="Original uploaded image with detected object locations" fill unoptimized className="object-contain" />
-                {analysis.result.objects.map((object, index) => object.bbox && (
-                  <div
-                    key={object.id}
-                    aria-hidden="true"
-                    className={`absolute ${object.id === selectedObjectId ? "border-[3px]" : "border-2"}`}
-                    style={{
-                      left: `${object.bbox.xMin / 10}%`,
-                      top: `${object.bbox.yMin / 10}%`,
-                      width: `${(object.bbox.xMax - object.bbox.xMin) / 10}%`,
-                      height: `${(object.bbox.yMax - object.bbox.yMin) / 10}%`,
-                      borderColor: detectionColors[index % detectionColors.length],
-                    }}
-                  >
-                    <span className="absolute left-1 top-1 z-10 inline-flex max-w-[min(18rem,80vw)] items-center gap-1.5 rounded-md border border-white/15 bg-slate-950/85 px-2 py-1 text-[11px] font-medium leading-tight tracking-[0.01em] text-white shadow-lg shadow-black/20 backdrop-blur-sm">
-                      <span className="size-1.5 shrink-0 rounded-full ring-2 ring-white/20" style={{ backgroundColor: detectionColors[index % detectionColors.length] }} />
-                      <span className="truncate">{object.label}</span>
-                    </span>
-                  </div>
-                ))}
+            <div ref={analysisFrameRef} className="analysis-image-stage mx-auto mb-5 w-full max-w-xl">
+              <div className="analysis-image-frame relative w-full overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}` }}>
+                <div className="analysis-image-content relative" style={{ aspectRatio: `${analysis.imageWidth} / ${analysis.imageHeight}`, width: analysisFullscreen ? `${fullscreenImageSize.width}px` : "100%", height: analysisFullscreen ? `${fullscreenImageSize.height}px` : "100%" }}>
+                  <Image src={previewUrl} alt="Original uploaded image with detected object locations" fill unoptimized className="object-contain" />
+                  {analysis.result.objects.map((object, index) => object.bbox && (
+                    <div
+                      key={object.id}
+                      aria-hidden="true"
+                      className={`absolute ${object.id === selectedObjectId ? "border-[3px]" : "border-2"}`}
+                      style={{
+                        left: `${object.bbox.xMin / 10}%`,
+                        top: `${object.bbox.yMin / 10}%`,
+                        width: `${(object.bbox.xMax - object.bbox.xMin) / 10}%`,
+                        height: `${(object.bbox.yMax - object.bbox.yMin) / 10}%`,
+                        borderColor: detectionColors[index % detectionColors.length],
+                      }}
+                    >
+                      <span className="absolute left-1 top-1 z-10 inline-flex max-w-[min(18rem,80vw)] items-center gap-1.5 rounded-md border border-white/15 bg-slate-950/85 px-2 py-1 text-[11px] font-medium leading-tight tracking-[0.01em] text-white shadow-lg shadow-black/20 backdrop-blur-sm">
+                        <span className="size-1.5 shrink-0 rounded-full ring-2 ring-white/20" style={{ backgroundColor: detectionColors[index % detectionColors.length] }} />
+                        <span className="truncate">{object.label}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <Button type="button" variant="secondary" size="sm" className="analysis-fullscreen-button gap-2 px-3" onClick={() => void toggleAnalysisFullscreen()} aria-label={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"} title={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"}>
-                {analysisFullscreen ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
-                <span>{analysisFullscreen ? "Exit full screen" : "Full screen"}</span>
-              </Button>
+              <div className="mt-3 flex justify-end">
+                <Button type="button" variant="secondary" size="sm" className="analysis-fullscreen-button gap-2 px-3" onClick={() => void toggleAnalysisFullscreen()} aria-label={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"} title={analysisFullscreen ? "Exit full screen" : "View analyzed image full screen"}>
+                  {analysisFullscreen ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
+                  <span>{analysisFullscreen ? "Exit full screen" : "Full screen"}</span>
+                </Button>
+              </div>
             </div>
             {fullscreenError && <p role="alert" className="mb-4 mt-0 text-sm text-destructive">{fullscreenError}</p>}
             <p className="mb-4 mt-0 text-xs text-muted-foreground">Detected object locations from {analysis.model}</p>
